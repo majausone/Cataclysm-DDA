@@ -236,3 +236,10 @@ canvas.icono { image-rendering: pixelated; flex: none; display: inline-block; ve
   .muneco { transform: scale(0.85); transform-origin: top center; }
   #botonera { top: auto; bottom: 14px; }
 }
+
+/* dónde construir: las casillas de alrededor */
+.rejilla-donde { display: grid; grid-template-columns: repeat(3, 52px); gap: 6px; margin: 6px 0 10px; }
+.celda-donde { width: 52px; height: 52px; border-radius: 10px; border: 1px solid var(--borde); background: rgba(255,255,255,0.03); color: var(--tenue); }
+.celda-donde.vale { border-color: var(--acento); background: rgba(224,168,79,0.15); color: var(--acento2); cursor: pointer; }
+.celda-donde.vale:hover { background: rgba(224,168,79,0.3); }
+.celda-donde.yo { color: var(--info); }

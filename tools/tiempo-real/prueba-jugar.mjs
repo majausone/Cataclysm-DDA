@@ -1,0 +1,175 @@
+// Jugar como una persona (Encargo 8, F), con Playwright, haciendo fotos de cada paso para mirarlas:
+//   node tools/tiempo-real/prueba-jugar.mjs [--url http://localhost:8095/] [--fotos carpeta] [--movil]
+// Crea un personaje desde nuestra pantalla de inicio y anda; mira el inventario y suelta y coge algo; fabrica algo;
+// mira construir, salud, personaje, el mapa y los mensajes; habla con un NPC; cambia de idioma; guarda, muere y carga
+// la partida. Apunta lo que falla (sin pararse) y devuelve 1 si algo ha fallado.
+import { mkdirSync } from 'node:fs';
+const { chromium, devices } = await import('playwright');
+const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
+const URL = arg('url', 'http://localhost:8095/'), FOTOS = arg('fotos', 'fotos-jugar'), MOVIL = process.argv.includes('--movil');
+mkdirSync(FOTOS, { recursive: true });
+const b = await chromium.launch({ headless: true, args: ['--enable-features=WebAssemblyExperimentalJSPI', '--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
+const ctx = await b.newContext(MOVIL ? { ...devices['Pixel 7'] } : { viewport: { width: 1366, height: 820 } });
+const p = await ctx.newPage();
+const errores = [];
+p.on('pageerror', (e) => errores.push(e.message.slice(0, 300)));
+let paso = 0, mal = 0;
+const foto = async (n) => { await p.screenshot({ path: `${FOTOS}/${String(++paso).padStart(2, '0')}-${n}.png` }); };
+const esperar = (ms) => p.waitForTimeout(ms);
+const comprobar = (n, ok, info = {}) => { if (!ok) mal++; console.log(ok ? 'OK ' : 'MAL', n, JSON.stringify(info)); };
+const estado = () => p.evaluate(() => { try { const e = window.interfazCdda.json('cdda_ui_estado'); return e && { hora: e.hora, actividad: e.actividad && e.actividad.id, ventanas: wasmExports.cdda_ventanas(), turno: wasmExports.cdda_turno(), avisos: wasmExports.cdda_avisos ? wasmExports.cdda_avisos() : 0 }; } catch { return null; } });
+const clic = async (sel) => { const l = p.locator(sel).first(); await l.click({ timeout: 5000 }); };
+const intentar = async (n, f) => { try { await f(); } catch (e) { comprobar(n, false, { error: e.message.split('\n')[0] }); } };
+
+await p.goto(URL);
+await p.waitForSelector('#inicio:not(.oculto)', { timeout: 240000 });
+await esperar(1500);
+await foto('inicio');
+comprobar('sale nuestra pantalla de inicio', true);
+
+// 1. crear un personaje
+await intentar('crear personaje', async () => {
+  await clic('#inicio .nueva');
+  await esperar(500);
+  await p.fill('#inicio input.nombre', 'Ana Prueba');
+  await clic('#inicio .m');
+  await foto('nueva-partida');
+  await clic('#inicio .empezar');
+  await p.waitForSelector('#hud:not(.oculto)', { timeout: 240000 });
+  await esperar(3000);
+  await foto('partida');
+  const e = await estado();
+  comprobar('la partida empieza', !!e, e || {});
+});
+
+// 2. andar (manteniendo flechas)
+await intentar('andar', async () => {
+  const a = await estado();
+  await p.keyboard.down('ArrowRight'); await esperar(2500); await p.keyboard.up('ArrowRight');
+  await p.keyboard.down('ArrowDown'); await esperar(1500); await p.keyboard.up('ArrowDown');
+  await foto('andando');
+  const z = await estado();
+  comprobar('el tiempo sigue andando', z && a && z.turno > a.turno, { turnos: z && a ? z.turno - a.turno : null });
+});
+
+// 3. el inventario: el muñequito, una tarjeta, soltar algo y cogerlo del suelo
+await intentar('inventario', async () => {
+  await p.keyboard.press('i');
+  await esperar(1500);
+  await foto('inventario');
+  const huecos = await p.locator('#panel .hueco .marco-icono:not(.vacio)').count();
+  comprobar('el muñequito tiene cosas puestas', huecos > 0, { huecos });
+  const iconos = await p.evaluate(() => [...document.querySelectorAll('#panel canvas.icono')].filter((c) => !c.dataset.sin).length);
+  comprobar('salen iconos (sprites del juego)', iconos > 0, { iconos });
+  const enBolsa = p.locator('#panel .casilla-obj').first();
+  if (await enBolsa.count()) {
+    await enBolsa.click();
+    await esperar(600);
+    await foto('tarjeta-objeto');
+    const soltar = p.locator('#ventana-objeto .pie button', { hasText: /Soltar|Drop/ });
+    if (await soltar.count()) { await soltar.click(); await esperar(2500); }
+  }
+  await p.keyboard.press('Escape');
+  await esperar(500);
+  await p.keyboard.press('g');
+  await esperar(1000);
+  await foto('coger-del-suelo');
+  const enSuelo = await p.locator('#ventana-coger .casilla-coger').count();
+  comprobar('lo soltado está en el suelo para cogerlo', enSuelo > 0, { enSuelo });
+  if (enSuelo) { await clic('#ventana-coger .pie .principal'); await esperar(2500); }
+  await foto('cogido');
+});
+
+// 4. fabricar algo
+await intentar('fabricar', async () => {
+  await p.keyboard.press('&');
+  await esperar(2000);
+  await foto('fabricar');
+  const primera = p.locator('#panel .columna.lista .fila-icono:not(.no-puede)').first();
+  if (await primera.count()) {
+    await primera.click();
+    await esperar(1000);
+    await foto('receta');
+    const boton = p.locator('#panel .columna.detalle .boton.principal');
+    if (await boton.isEnabled()) {
+      await boton.click();
+      await esperar(2500);
+      await foto('fabricando');
+      const e = await estado();
+      comprobar('al fabricar hay una actividad con su barra', !!(e && e.actividad), e || {});
+    }
+  } else {
+    const otra = p.locator('#panel .columna.lista .fila-icono').first();
+    if (await otra.count()) { await otra.click(); await esperar(1000); await foto('receta-no-se-puede'); }
+  }
+  await p.keyboard.press('Escape');
+});
+
+// 5. las demás pestañas
+for (const [tecla, nombre] of [['*', 'construir'], ['m', 'mapa'], ['@', 'personaje']]) {
+  await intentar(nombre, async () => { await p.keyboard.press(tecla); await esperar(1500); await foto(nombre); await p.keyboard.press('Escape'); await esperar(300); });
+}
+await intentar('salud y mensajes', async () => {
+  await p.keyboard.press('Tab'); await esperar(800);
+  await clic('#panel .pestanas button[data-p="salud"]'); await esperar(800); await foto('salud');
+  await clic('#panel .pestanas button[data-p="mensajes"]'); await esperar(800); await foto('mensajes');
+  await p.keyboard.press('Escape');
+});
+
+// 6. hablar con un NPC (sin parar el mundo)
+await intentar('hablar', async () => {
+  await p.evaluate(() => wasmExports.cdda_sim_npc_al_lado());
+  await esperar(2500);
+  await p.keyboard.press('C');
+  await esperar(2000);
+  await foto('dialogo');
+  const visible = await p.locator('#dialogo:not(.oculto)').count();
+  comprobar('el diálogo sale en nuestra ventana', visible > 0);
+  const a = await estado(); await esperar(2000); const z = await estado();
+  comprobar('mientras se habla, el mundo sigue', z && a && z.turno > a.turno, { turnos: z && a ? z.turno - a.turno : null });
+  const r = p.locator('#dialogo .respuestas button:not([disabled])').first();
+  if (await r.count()) { await r.click(); await esperar(1500); await foto('dialogo-respuesta'); }
+  if (await p.locator('#dialogo:not(.oculto)').count()) await clic('#dialogo .cerrar');
+  await esperar(800);
+});
+
+// 7. idioma
+await intentar('idioma', async () => {
+  await p.keyboard.press('Escape'); await esperar(500);
+  await clic('#ventana-opciones .en'); await esperar(2500);
+  await p.keyboard.press('Escape'); await esperar(300);
+  await p.keyboard.press('i'); await esperar(1500);
+  await foto('en-ingles');
+  await p.keyboard.press('Escape'); await esperar(300);
+  await p.keyboard.press('Escape'); await esperar(500);
+  await clic('#ventana-opciones .es'); await esperar(2500);
+  await p.keyboard.press('Escape');
+});
+
+// 8. guardar, morir y cargar
+await intentar('guardar, morir y cargar', async () => {
+  await p.keyboard.press('Escape'); await esperar(500);
+  await clic('#ventana-opciones .guardar'); await esperar(4000);
+  await p.evaluate(() => wasmExports.cdda_sim_morir());
+  await p.waitForSelector('#inicio:not(.oculto)', { timeout: 120000 });
+  await esperar(1500);
+  await foto('muerte');
+  comprobar('sale nuestra pantalla de muerte', await p.locator('#inicio .muerte').count() > 0);
+  await clic('#inicio .cargar'); await esperar(1000);
+  await foto('cargar');
+  const partidas = await p.locator('#inicio .partida').count();
+  comprobar('hay partidas para cargar', partidas > 0, { partidas });
+  if (partidas) {
+    await clic('#inicio .partida');
+    await p.waitForSelector('#hud:not(.oculto)', { timeout: 240000 });
+    await esperar(3000);
+    await foto('cargada');
+    comprobar('la partida se carga', !!(await estado()));
+  }
+});
+
+const e = await estado();
+comprobar('sin avisos de error del juego', !e || !e.avisos, { avisos: e && e.avisos });
+comprobar('sin errores de la página', errores.length === 0, { errores: errores.slice(0, 3) });
+await b.close();
+process.exit(mal ? 1 : 0);

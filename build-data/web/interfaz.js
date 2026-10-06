@@ -51,7 +51,7 @@
       componentes: 'Componentes', herramientas: 'Herramientas', cualidades: 'Cualidades', tiempo: 'Tiempo', habilidad: 'Habilidad',
       tu_nivel: 'tu nivel', sale: 'Sale', competencias: 'Competencias', o: 'o', nivel: 'nivel', tienes: 'tienes',
       elige_receta: 'Elige una receta para ver qué hace falta.', elige_con: 'Elige una construcción.',
-      con_nota: 'Al construir se abre el menú del juego para escoger dónde.', puedes_con: 'Puedes construir',
+      donde: 'Dónde (pulsa una casilla de alrededor)', no_hay_sitio: 'No hay sitio a tu alrededor para esto.', puedes_con: 'Puedes construir',
       cuerpo: 'Cuerpo', necesidades: 'Necesidades', sangra: 'sangra', rota: 'rota', atributos: 'Atributos',
       fuerza: 'Fuerza', destreza: 'Destreza', inteligencia: 'Inteligencia', percepcion: 'Percepción', habilidades: 'Habilidades', ninguna: 'Ninguna todavía.',
       todo: 'Todo', combate: 'Combate', ambiente: 'Ambiente', sin_mensajes: 'Sin mensajes.',
@@ -81,7 +81,7 @@
       componentes: 'Components', herramientas: 'Tools', cualidades: 'Qualities', tiempo: 'Time', habilidad: 'Skill',
       tu_nivel: 'your level', sale: 'Makes', competencias: 'Proficiencies', o: 'or', nivel: 'level', tienes: 'you have',
       elige_receta: 'Pick a recipe to see what it needs.', elige_con: 'Pick a construction.',
-      con_nota: 'Building opens the game menu to choose where.', puedes_con: 'You can build',
+      donde: 'Where (click a tile around you)', no_hay_sitio: 'There is no room around you for this.', puedes_con: 'You can build',
       cuerpo: 'Body', necesidades: 'Needs', sangra: 'bleeding', rota: 'broken', atributos: 'Attributes',
       fuerza: 'Strength', destreza: 'Dexterity', inteligencia: 'Intelligence', percepcion: 'Perception', habilidades: 'Skills', ninguna: 'None yet.',
       todo: 'All', combate: 'Combat', ambiente: 'Ambient', sin_mensajes: 'No messages.',
@@ -555,12 +555,19 @@
     const detalle = (x) => {
       der.innerHTML = '';
       der.appendChild(crear(`<div class="tarjeta-cabeza"><div class="marco-icono" style="width:56px;height:56px"><i class="fa-solid fa-trowel-bricks" style="font-size:24px;color:var(--acento)"></i></div><h2>${esc(x.nombre)}</h2></div>`));
-      if (!x.puede) der.appendChild(crear(`<div class="motivo">${esc(resumirMotivo(x.motivo))}</div>`));
-      der.appendChild(crear(`<div class="descripcion">${T('con_nota')}</div>`));
-      const b = crear(`<button class="boton principal grande"><i class="fa-solid fa-trowel-bricks"></i> ${T('construir')}</button>`);
-      b.disabled = !x.puede;
-      b.onclick = () => { ordenar({ a: 'construir' }); cerrarPanel(); };
-      der.appendChild(crear(`<div class="botones"></div>`)).appendChild(b);
+      if (!x.puede) { der.appendChild(crear(`<div class="motivo">${esc(resumirMotivo(x.motivo))}</div>`)); return; }
+      // dónde: las casillas de alrededor (el centro es el personaje); las que valen, se pueden pulsar
+      der.appendChild(crear(`<h3>${T('donde')}</h3>`));
+      const rej = crear(`<div class="rejilla-donde"></div>`);
+      const vale = new Set((x.donde || []).map(([dx, dy]) => `${dx},${dy}`));
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const yo = dx === 0 && dy === 0, ok = vale.has(`${dx},${dy}`);
+        const celda = crear(`<button class="celda-donde ${yo ? 'yo' : ok ? 'vale' : ''}" ${ok ? '' : 'disabled'}>${yo ? '<i class="fa-solid fa-person"></i>' : ok ? '<i class="fa-solid fa-trowel-bricks"></i>' : ''}</button>`);
+        if (ok) celda.onclick = () => { ordenar({ a: 'construir', grupo: x.grupo, dx, dy }); cerrarPanel(); };
+        rej.appendChild(celda);
+      }
+      der.appendChild(rej);
+      if (!vale.size) der.appendChild(crear(`<div class="motivo">${T('no_hay_sitio')}</div>`));
     };
     const pintar = () => {
       const q = buscar.value.toLowerCase();
