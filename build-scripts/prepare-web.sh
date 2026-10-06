@@ -89,6 +89,8 @@ printf '%s\n' "$TILESET_MANIFEST" | jq --sort-keys . > "$BUILD_DIR/tilesets.json
 
 cp \
   build-data/web/index.html \
+  build-data/web/interfaz.js \
+  build-data/web/interfaz.css \
   cataclysm-tiles.{data,data.js,js,wasm} \
   data/font/Terminus.ttf \
   "$BUILD_DIR"
