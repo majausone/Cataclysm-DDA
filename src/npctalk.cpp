@@ -2334,6 +2334,19 @@ void parse_tags( std::string &phrase, const_talker const &u, const_talker const 
                  const_dialogue const &d,
                  const itype_id &item_type )
 {
+    // (la traducción al español cambió la etiqueta <punc...> por <punt...> en algunas frases, «Adios<punt.!>»:
+    // se devuelve a la de verdad antes de expandirla; si no, salía el aviso «Bad tag»)
+    // (y dentro de ellas, «…» como «...»: «<punc...!>» por «<punc…!>»)
+    for( size_t i = phrase.find( "<punt" ); i != std::string::npos; i = phrase.find( "<punt", i ) ) {
+        phrase.replace( i, 5, "<punc" );
+    }
+    for( size_t i = phrase.find( "<punc" ); i != std::string::npos; i = phrase.find( "<punc", i + 1 ) ) {
+        const size_t fin = phrase.find( '>', i );
+        const size_t puntos = phrase.find( "...", i );
+        if( fin != std::string::npos && puntos != std::string::npos && puntos < fin ) {
+            phrase.replace( puntos, 3, "…" );
+        }
+    }
     phrase = SNIPPET.expand( phrase );
 
     const Character *u_chr = u.get_const_character();
