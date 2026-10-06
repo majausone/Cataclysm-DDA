@@ -61,6 +61,8 @@ class main_menu
         // start a game have a void return type.
         bool load_game( std::string const &worldname, save_t const &savegame );
         bool new_character_tab();
+        // (interfaz web) una partida nueva como «Play Now!» con el nombre y el sexo elegidos en la página
+        bool partida_nueva_web( const std::string &nombre, bool hombre );
         bool load_character_tab( const std::string &worldname );
         void world_tab( const std::string &worldname );
 

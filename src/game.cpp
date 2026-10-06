@@ -2899,13 +2899,21 @@ bool game::is_game_over()
         if( !u.is_dead_state() ) {
             return false;
         }
-        bury_screen();
+        // (con la interfaz web, nada de lápida ni de preguntas: se guarda un resumen y la página enseña su pantalla
+        // de muerte)
+        if( interfaz::activa() ) {
+            interfaz::al_morir();
+        } else {
+            bury_screen();
+        }
         effect_on_conditions::avatar_death();
         if( !u.is_dead_state() ) {
             return false;
         }
         Messages::deactivate();
-        if( get_option<std::string>( "DEATHCAM" ) == "always" ) {
+        if( interfaz::activa() ) {
+            uquit = QUIT_DIED;
+        } else if( get_option<std::string>( "DEATHCAM" ) == "always" ) {
             uquit = QUIT_WATCH;
         } else if( get_option<std::string>( "DEATHCAM" ) == "ask" ) {
             uquit = query_yn( _( "Watch the last moments of your life…?" ) ) ?
@@ -2936,6 +2944,12 @@ void game::bury_screen() const
 
 void game::death_screen()
 {
+    // (con la interfaz web, sin las pantallas modales del final: la de muerte es de la página)
+    if( interfaz::activa() ) {
+        gamemode->game_over();
+        u.get_avatar_diary()->death_entry();
+        return;
+    }
     gamemode->game_over();
     Messages::display_messages();
     u.get_avatar_diary()->death_entry();
