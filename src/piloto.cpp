@@ -56,6 +56,7 @@ std::optional<bool> pedido; // encender o apagar en el siguiente turno
 std::string motivo;          // por qué se apagó solo
 std::atomic<bool> npc_pedido{ false };
 std::atomic<int> carga_pedida{ 0 };
+std::atomic<bool> muerte_pedida{ false };
 const mtype_id mon_zombie_carga( "mon_zombie" );
 
 std::string escapar( const std::string &s )
@@ -217,6 +218,11 @@ void pedir_carga( int n )
     carga_pedida = n;
 }
 
+void pedir_muerte()
+{
+    muerte_pedida = true;
+}
+
 std::string motivo_apagado()
 {
     return motivo;
@@ -262,6 +268,10 @@ void turno()
 {
     if( npc_pedido.exchange( false ) ) {
         poner_npc_al_lado();
+    }
+    // (solo para las pruebas: morir, para probar la pantalla de muerte y cargar partida)
+    if( muerte_pedida.exchange( false ) ) {
+        get_avatar().set_all_parts_hp_cur( 0 );
     }
     if( const int n = carga_pedida.exchange( 0 ) ) {
         // (para medir: el jugador, intocable, que si no le matan en seguida y no da tiempo)
@@ -443,6 +453,11 @@ extern "C" {
     EMSCRIPTEN_KEEPALIVE void cdda_sim_carga( int n )
     {
         piloto::pedir_carga( n );
+    }
+    // morir (solo para las pruebas de la pantalla de muerte)
+    EMSCRIPTEN_KEEPALIVE void cdda_sim_morir()
+    {
+        piloto::pedir_muerte();
     }
 }
 #endif
