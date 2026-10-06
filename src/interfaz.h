@@ -63,6 +63,8 @@ std::string equipo_json();
 std::string receta_json( const std::string &id );
 // lo que hay en el suelo de la casilla (dx, dy), para coger lo que se elija
 std::string suelo_json( int dx, int dy );
+// lo que se le puede robar al NPC de la casilla (dx, dy): lo que lleva, salvo lo puesto y lo que empuña
+std::string robo_json( int dx, int dy );
 // la conversación en curso (null si no hay)
 std::string dialogo_json();
 // el mapa del mundo alrededor (radio en casillas del mapa grande)

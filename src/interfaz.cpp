@@ -133,6 +133,9 @@ std::vector<std::pair<std::string, std::string>> acciones_en( avatar &u, const t
         if( c != &u ) {
             if( c->is_npc() ) {
                 a.emplace_back( "hablar", "Hablar" );
+                if( c->attitude_to( u ) != Creature::Attitude::HOSTILE ) {
+                    a.emplace_back( "robar", "Robar" );
+                }
             }
             a.emplace_back( "atacar", "Atacar" );
             a.emplace_back( "mirar", "Mirar" );
@@ -973,6 +976,12 @@ extern "C" {
     {
         static std::string s;
         s = interfaz::suelo_json( dx, dy );
+        return s.c_str();
+    }
+    EMSCRIPTEN_KEEPALIVE const char *cdda_ui_robo( int dx, int dy )
+    {
+        static std::string s;
+        s = interfaz::robo_json( dx, dy );
         return s.c_str();
     }
     EMSCRIPTEN_KEEPALIVE const char *cdda_ui_dialogo()
