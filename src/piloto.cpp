@@ -223,6 +223,16 @@ void pedir( bool encender )
 static void poner_npc_al_lado()
 {
     avatar &u = get_avatar();
+    // (como mucho dos cerca: con más, el juego se pasa el rato en diálogos)
+    int cerca = 0;
+    for( const npc &n : g->all_npcs() ) {
+        if( !n.is_dead() && rl_dist( n.pos_bub(), u.pos_bub() ) <= 3 ) {
+            cerca++;
+        }
+    }
+    if( cerca >= 2 ) {
+        return;
+    }
     // (mejor en una casilla de al lado: con un solo NPC al lado, «hablar» no pregunta con quién)
     const std::optional<tripoint_bub_ms> donde = libre_cerca( u.pos_bub() );
     if( !donde ) {
@@ -235,6 +245,8 @@ static void poner_npc_al_lado()
     p->spawn_at_precise( get_map().get_abs( *donde ) );
     overmap_buffer.insert_npc( p );
     p->form_opinion( u );
+    // (neutral: al azar, algunos salen atracadores y no dejan hacer otra cosa que contestarles)
+    p->set_attitude( NPCATT_NULL );
     p->mission = NPC_MISSION_NULL;
     g->load_npcs();
 }
