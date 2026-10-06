@@ -181,6 +181,10 @@ std::vector<std::pair<std::string, std::string>> acciones_en( avatar &u, const t
 
 void poner_idioma( const std::string &idioma )
 {
+    // (antes de que el juego cargue sus opciones, la página ya pregunta: entonces no hay nada que tocar)
+    if( !get_options().has_option( "USE_LANG" ) ) {
+        return;
+    }
     get_options().get_option( "USE_LANG" ).setValue( idioma == "es" ? "es_ES" : "en" );
     get_options().save();
     set_language_from_options();
@@ -188,6 +192,9 @@ void poner_idioma( const std::string &idioma )
 
 std::string idioma()
 {
+    if( !get_options().has_option( "USE_LANG" ) ) {
+        return "es";
+    }
     const std::string l = get_option<std::string>( "USE_LANG" );
     return l.rfind( "es", 0 ) == 0 ? "es" : "en";
 }

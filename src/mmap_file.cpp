@@ -17,6 +17,7 @@
 #endif
 
 #include <filesystem>
+#include <fstream>
 
 #include "cata_scope_helpers.h"
 #include "cata_utility.h"
@@ -298,6 +299,29 @@ std::unique_ptr<mmap_file> mmap_file::map_file_generic(
     bool writeable )
 {
     std::unique_ptr<mmap_file> mapped_file;
+
+#ifdef __EMSCRIPTEN__
+    // (en la web, mmap de un fichero del paquete, que va comprimido, falla: se lee entero a memoria)
+    if( !writeable ) {
+        std::error_code ec;
+        const uintmax_t size = std::filesystem::file_size( file_path, ec );
+        std::ifstream f( file_path, std::ios::binary );
+        if( ec || !f ) {
+            return mapped_file;
+        }
+        std::shared_ptr<malloc_impl> m = std::make_shared<malloc_impl>( static_cast<size_t>( size ) );
+        if( size != 0 && m->base() == nullptr ) {
+            return mapped_file;
+        }
+        f.read( static_cast<char *>( m->base() ), static_cast<std::streamsize>( size ) );
+        if( static_cast<uintmax_t>( f.gcount() ) != size ) {
+            return mapped_file;
+        }
+        mapped_file = std::unique_ptr<mmap_file> { new mmap_file() };
+        mapped_file->pimpl = std::move( m );
+        return mapped_file;
+    }
+#endif
 
 #ifdef _WIN32
     HANDLE file_handle;
