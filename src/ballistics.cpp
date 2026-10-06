@@ -448,8 +448,10 @@ void projectile_attack( dealt_projectile_attack &attack, const projectile &proj_
 
         for( size_t i = 1; i < traj_len && ( has_momentum || stream ); ++i ) {
             tp = t_copy[i];
+            // (la bala se sale de la zona que simula el juego (el disparo sigue de largo más allá del blanco): ahí se
+            // acaba, sin más. Antes era un aviso de error que en la versión web es una ventana que bloquea; lo cazó el
+            // modo simulación con NPC disparando cerca del borde)
             if( !here->inbounds( tp ) ) {
-                debugmsg( "Shot along %s out-of-bounds", tp.to_string() );
                 break;
             }
             int distance = rl_dist( source, tp );
