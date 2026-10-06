@@ -38,6 +38,8 @@ std::atomic<int64_t> latidos{ 0 };
 std::atomic<int64_t> turnos{ 0 };
 std::atomic<bool> muerto{ false };
 std::atomic<int> ventanas{ 0 };
+std::atomic<int> pos_x{ 0 };                 // dónde está el jugador (lo escribe el juego en cada turno)
+std::atomic<int> pos_y{ 0 };
 std::atomic<bool> guardado_pedido{ false };  // un guardado rápido (lo hace el juego al empezar el turno)
 std::atomic<int> foto_pedida{ 0 };     // una foto de la pantalla (la hace el juego en su siguiente latido): su número
 // (lo que comparten el juego y el vigilante no se destruye nunca: si el juego sale por su cuenta, el vigilante sigue
@@ -302,6 +304,43 @@ void jugar()
                 tecla( SDLK_UNKNOWN, SDL_SCANCODE_UNKNOWN, texto );
             }
         }
+        // andar: una dirección cada 100 ms; si en 2 s no se ha movido (una pared), la siguiente. Cada segundo, cuántas
+        // casillas ha avanzado (ANDAR)
+        if( modo == "andar" && escapes == 0 ) {
+            static const std::array<std::pair<SDL_Keycode, SDL_Scancode>, 4> dirs = { {
+                    { SDLK_RIGHT, SDL_SCANCODE_RIGHT }, { SDLK_DOWN, SDL_SCANCODE_DOWN },
+                    { SDLK_LEFT, SDL_SCANCODE_LEFT }, { SDLK_UP, SDL_SCANCODE_UP }
+                }
+            };
+            static int dir = 0;
+            static auto t_mov = reloj_t::now();
+            static auto t_seg = reloj_t::now();
+            static int ux = pos_x.load();
+            static int uy = pos_y.load();
+            static int sx = pos_x.load();
+            static int sy = pos_y.load();
+            if( segundos_desde( t_tecla ) > 0.1 ) {
+                t_tecla = reloj_t::now();
+                tecla( dirs[dir].first, dirs[dir].second, nullptr );
+            }
+            if( pos_x.load() != ux || pos_y.load() != uy ) {
+                ux = pos_x.load();
+                uy = pos_y.load();
+                t_mov = reloj_t::now();
+            } else if( segundos_desde( t_mov ) > 2 ) {
+                dir = ( dir + 1 ) % 4;
+                t_mov = reloj_t::now();
+            }
+            if( segundos_desde( t_seg ) >= 1.0 ) {
+                const int casillas = std::max( std::abs( pos_x.load() - sx ), std::abs( pos_y.load() - sy ) );
+                escribir( "ANDAR " + std::to_string( casillas ) + " casillas en " +
+                          std::to_string( segundos_desde( t_seg ) ).substr( 0, 4 ) + " s, turno " +
+                          std::to_string( turnos.load() ) );
+                sx = pos_x.load();
+                sy = pos_y.load();
+                t_seg = reloj_t::now();
+            }
+        }
         // el mono: una tecla cada 150 ms (callado mientras se intenta salir de un atasco)
         if( modo == "mono" && escapes == 0 && segundos_desde( t_tecla ) > 0.15 ) {
             t_tecla = reloj_t::now();
@@ -402,9 +441,11 @@ void turno()
     if( guardado_pedido.exchange( false ) ) {
         g->quicksave();
     }
-    // siempre a la máxima (el peligro la baja a x1)
-    if( realtime::el_reloj().vel() != realtime::velocidad::maxima ) {
-        realtime::poner( realtime::velocidad::maxima );
+    // siempre a la velocidad de CDDA_SIM_VEL (por defecto, la máxima; el peligro la baja)
+    static const realtime::velocidad vel_sim = std::getenv( "CDDA_SIM_VEL" ) != nullptr ?
+            realtime::de_texto( std::getenv( "CDDA_SIM_VEL" ) ) : realtime::velocidad::maxima;
+    if( realtime::el_reloj().vel() != vel_sim ) {
+        realtime::poner( vel_sim );
     }
     if( modo == "piloto" ) {
         static bool pedido = false;
@@ -426,9 +467,11 @@ void turno()
         muerto = true;
     }
     // el estado, cada 100 turnos (lo apunta el vigilante cada 10 s)
+    pos_x = u.pos_abs().x();
+    pos_y = u.pos_abs().y();
     if( turnos.load() % 100 == 1 ) {
         std::ostringstream e;
-        e << to_string( calendar::turn ) << ", " << ( modo == "piloto" ? piloto::estado_json() : u.get_name() +
+        e << to_string( calendar::turn ) << ", pos " << u.pos_abs().to_string() << ", " << ( modo == "piloto" ? piloto::estado_json() : u.get_name() +
                 " en " + u.pos_abs().to_string() );
         std::lock_guard<std::mutex> g( cerrojo );
         estado = e.str();

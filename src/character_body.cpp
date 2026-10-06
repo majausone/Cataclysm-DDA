@@ -15,6 +15,7 @@
 #include "cata_utility.h"
 #include "catacharset.h"
 #include "character.h"
+#include "realtime.h"
 #include "character_attire.h"
 #include "color.h"
 #include "coordinates.h"
@@ -240,8 +241,12 @@ void Character::update_body( const time_point &from, const time_point &to )
         last_updated = to;
         return;
     }
+    // (tiempo real: el aguante va a ritmo real, con los turnos de acción del intervalo)
     if( !is_npc() ) {
-        update_stamina( to_turns<int>( to - from ) );
+        const int turnos_aguante = realtime::turnos_de_accion( to_turns<int>( to - from ), 7 );
+        if( turnos_aguante > 0 ) {
+            update_stamina( turnos_aguante );
+        }
     }
     if( can_recover_oxygen() && oxygen < get_oxygen_max() ) {
         oxygen += std::max( static_cast<int>( to_turns<int>( to - from ) * get_stamina() * 5 * get_modifier(

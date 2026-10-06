@@ -1,4 +1,5 @@
 #include "creature.h"
+#include "realtime.h"
 
 #include <algorithm>
 #include <array>
@@ -397,9 +398,9 @@ void Creature::process_turn()
 {
     process_turn_no_moves();
 
-    // add an appropriate number of moves
+    // add an appropriate number of moves (tiempo real: repartidos entre los tics de un segundo real)
     if( !has_effect( effect_ridden ) ) {
-        moves += get_speed();
+        moves += realtime::puntos_por_tic( get_speed(), false );
     }
 }
 
@@ -2158,6 +2159,11 @@ void Creature::process_effects()
                 rem_bps.emplace_back( bodypart_str_id::NULL_ID() );
             }
             effect &e = _it.second;
+            // (tiempo real: los efectos de combate (aturdido, derribado, sangrado...) bajan una vez por segundo
+            // real)
+            if( realtime::efecto_real( e.get_id().str() ) && !realtime::tic_de_accion( 20 ) ) {
+                continue;
+            }
             const int prev_int = e.get_intensity();
             // Run decay effects, marking effects for removal as necessary.
             e.decay( rem_ids, rem_bps, calendar::turn, is_avatar(), *effects );

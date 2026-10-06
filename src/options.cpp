@@ -1704,18 +1704,18 @@ void options_manager::add_options_general()
        );
 
     add( "REALTIME_SPEED", "general", to_translation( "Real time: starting speed" ),
-         to_translation( "Turns per real second when the game starts.  x1 is real time (1 turn = 1 second); x72 is a day in 20 minutes.  Change it while playing with F6 / F7 (or }) and pause with F8." ),
+         to_translation( "How long a game day lasts when the game starts.  Each turn is one second of the world; walking, fighting and fire always go at real pace.  Fast speeds everything up (to sleep, travel or wait) and goes back to normal on danger.  Change it while playing with F6 / F7 (or }) and pause with F8." ),
     {
-        { "pausa", to_translation( "Pause" ) }, { "1", to_translation( "x1" ) }, { "3", to_translation( "x3" ) },
-        { "10", to_translation( "x10" ) }, { "30", to_translation( "x30" ) }, { "72", to_translation( "x72" ) },
-        { "max", to_translation( "Max" ) }
+        { "pausa", to_translation( "Pause" ) }, { "lento", to_translation( "Day in 2 hours" ) },
+        { "normal", to_translation( "Day in 1 hour" ) }, { "rapido", to_translation( "Day in 30 minutes" ) },
+        { "max", to_translation( "Fast (everything)" ) }
     },
-    "1"
+    "normal"
        );
 
     add( "REALTIME_DANGER", "general", to_translation( "Real time: on danger" ),
          to_translation( "What the clock does when a new danger comes into view (the same detection as safe mode): slow down to x1, pause, or nothing." ),
-    { { "x1", to_translation( "Slow down to x1" ) }, { "pause", to_translation( "Pause" ) }, { "nothing", to_translation( "Nothing" ) } },
+    { { "x1", to_translation( "Back to normal (if fast)" ) }, { "pause", to_translation( "Pause" ) }, { "nothing", to_translation( "Nothing" ) } },
     "x1"
        );
 

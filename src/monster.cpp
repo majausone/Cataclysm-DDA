@@ -1,4 +1,5 @@
 #include "monster.h"
+#include "realtime.h"
 
 #include <algorithm>
 #include <cmath>
@@ -3025,7 +3026,8 @@ void monster::process_turn()
             continue;
         }
 
-        if( local_attack_data.cooldown > 0 ) {
+        // (tiempo real: la espera de un ataque especial baja una vez por segundo real)
+        if( local_attack_data.cooldown > 0 && realtime::tic_de_accion( 12 ) ) {
             local_attack_data.cooldown--;
         }
     }

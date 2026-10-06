@@ -732,14 +732,24 @@ bool game::do_turn()
         scent.set( u.pos_bub(), u.scent, u.get_type_of_scent() );
         overmap_buffer.set_scent( u.pos_abs_omt(),  u.scent );
     }
-    scent.update( u.pos_bub(), m );
+    // (tiempo real: el olor, una vez por segundo real; si no, se borraría 24 veces más deprisa de lo que andan los
+    // monstruos que lo siguen)
+    if( realtime::tic_de_accion( 0 ) ) {
+        scent.update( u.pos_bub(), m );
+    }
 
     // We need floor cache before checking falling 'n stuff
     m.build_floor_caches();
 
     m.process_falling();
-    m.vehmove();
-    m.process_fields();
+    // (tiempo real: vehículos en marcha y campos (fuego, humo, gases...), una vez por segundo real, cada uno en su
+    // tic para no caer todos en el mismo)
+    if( realtime::tic_de_accion( 5 ) ) {
+        m.vehmove();
+    }
+    if( realtime::tic_de_accion( 10 ) ) {
+        m.process_fields();
+    }
     m.process_items();
     explosion_handler::process_explosions();
     m.creature_in_field( u );
@@ -757,7 +767,9 @@ bool game::do_turn()
     if( calendar::once_every( time_between_npc_OM_moves ) ) {
         overmap_npc_move();
     }
-    m.furniture_terrain_emit_fields();
+    if( realtime::tic_de_accion( 15 ) ) {
+        m.furniture_terrain_emit_fields();
+    }
     // required after monsters move and fields emit
     mon_info_update();
 
