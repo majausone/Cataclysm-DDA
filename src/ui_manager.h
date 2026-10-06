@@ -293,6 +293,11 @@ void redraw();
  **/
 void redraw_invalidated();
 /**
+ * (web, tiempo real) Si al acabar de pintar se cede al navegador (emscripten_sleep). Al pintar desde un fotograma
+ * del navegador (requestAnimationFrame) no se puede: no hay pila que suspender.
+ **/
+void ceder_al_pintar( bool si );
+/**
  * Handle resize of the game window.
  * Not supposed to be directly called by the user.
  **/
