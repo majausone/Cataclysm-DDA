@@ -12,6 +12,11 @@ mkdir -p $DATA_DIR
 mkdir -p $BUILD_DIR
 cp -R data/{core,font,fontdata.json,json,mods,names,raw,motd,credits,title} $DATA_DIR/
 cp -R gfx $BUNDLE_DIR/
+# Las traducciones del juego (lang/mo/<idioma>/LC_MESSAGES/cataclysm-dda.mo), si las hay: el español de la interfaz
+if [ -d lang/mo ]; then
+    mkdir -p $BUNDLE_DIR/lang
+    cp -R lang/mo $BUNDLE_DIR/lang/
+fi
 
 # Remove .DS_Store files.
 find web_bundle -name ".DS_Store" -type f -exec rm {} \;
