@@ -1,4 +1,5 @@
 #include "game.h"
+#include "realtime.h"
 #include "map_memory.h"
 
 #include <algorithm>
@@ -2576,6 +2577,9 @@ input_context get_default_mode_input_context()
         ctxt.register_action( "LEFT", to_translation( "Move west" ) );
         ctxt.register_action( "LEFTUP", to_translation( "Move northwest" ) );
         ctxt.register_action( "pause" );
+        ctxt.register_action( "REALTIME_FASTER", to_translation( "Real time: faster" ) );
+        ctxt.register_action( "REALTIME_SLOWER", to_translation( "Real time: slower" ) );
+        ctxt.register_action( "REALTIME_PAUSE", to_translation( "Real time: pause / resume" ) );
         ctxt.register_action( "LEVEL_DOWN", to_translation( "Descend stairs" ) );
         ctxt.register_action( "LEVEL_UP", to_translation( "Ascend stairs" ) );
         ctxt.register_action( "center" );
@@ -3995,6 +3999,10 @@ void game::mon_info_update( )
         }
     }
 
+    // tiempo real: un peligro nuevo a la vista baja a x1 o pausa (opción REALTIME_DANGER)
+    if( newseen > mostseen ) {
+        realtime::peligro();
+    }
     if( uistate.distraction_hostile_spotted && newseen > mostseen ) {
         if( newseen - mostseen == 1 ) {
             if( !new_seen_mon.empty() ) {

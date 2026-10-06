@@ -2762,6 +2762,27 @@
   },
   {
     "type": "keybinding",
+    "name": "Real time: faster",
+    "category": "DEFAULTMODE",
+    "id": "REALTIME_FASTER",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F7" }, { "input_method": "keyboard_any", "key": "}" } ]
+  },
+  {
+    "type": "keybinding",
+    "name": "Real time: slower",
+    "category": "DEFAULTMODE",
+    "id": "REALTIME_SLOWER",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F6" } ]
+  },
+  {
+    "type": "keybinding",
+    "name": "Real time: pause / resume",
+    "category": "DEFAULTMODE",
+    "id": "REALTIME_PAUSE",
+    "bindings": [ { "input_method": "keyboard_any", "key": "F8" } ]
+  },
+  {
+    "type": "keybinding",
     "name": "Toggle language to English (requires global keybind!)",
     "id": "toggle_language_to_en"
   },
