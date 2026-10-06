@@ -20,7 +20,8 @@ namespace realtime
 
 // Un tic es un turno del juego (1 segundo del mundo). Lo que se elige es cuánto dura un día: con el día normal van
 // 24 tics por segundo real (un día, una hora). Andar, pelear y lo demás de la acción va a paso real con cualquier
-// duración del día (ver factor_accion y TIEMPO-24.md); «máxima» (acelerar todo) lo acelera todo.
+// duración del día (ver factor_accion y TIEMPO-24.md). «máxima» no es para el jugador: es para el modo simulación y
+// las pruebas (lo más rápido que pueda el ordenador, todo acelerado).
 enum class velocidad : int { pausa = 0, lento, normal, rapido, maxima };
 constexpr int num_velocidades = 5;
 

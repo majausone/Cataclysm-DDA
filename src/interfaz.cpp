@@ -199,6 +199,7 @@ std::string estado_json()
     j.member( "tiempo", remove_color_tags( display::weather_text_color( u ).first ) );
     j.member( "tiempoColor", color( display::weather_text_color( u ).second ) );
     j.member( "temperatura", print_temperature( get_weather().temperature ) );
+    j.member( "temperaturaC", units::to_celsius( get_weather().temperature ) );
     j.member( "exterior", get_map().is_outside( u.pos_bub() ) );
     const item_location en_mano = u.get_wielded_item();
     j.member( "enMano", en_mano ? en_mano->tname() : std::string( "manos vacías" ) );

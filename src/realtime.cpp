@@ -330,8 +330,9 @@ void poner( velocidad v )
 
 void subir()
 {
+    // (el jugador elige la duración del día; la máxima es solo para el modo simulación y las pruebas)
     const int i = static_cast<int>( el_reloj().vel() );
-    poner( static_cast<velocidad>( std::min( i + 1, num_velocidades - 1 ) ) );
+    poner( static_cast<velocidad>( std::min( i + 1, static_cast<int>( velocidad::rapido ) ) ) );
 }
 
 void bajar()
