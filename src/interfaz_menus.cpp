@@ -43,6 +43,7 @@
 #include "overmap.h"
 #include "overmapbuffer.h"
 #include "proficiency.h"
+#include "rng.h"
 #include "recipe.h"
 #include "recipe_dictionary.h"
 #include "requirements.h"
@@ -439,6 +440,36 @@ std::string suelo_json( int dx, int dy )
     return s.str();
 }
 
+// --- robar
+std::string robo_json( int dx, int dy )
+{
+    std::ostringstream s;
+    JsonOut j( s );
+    avatar &u = get_avatar();
+    npc *guy = get_creature_tracker().creature_at<npc>( u.pos_bub() + tripoint_rel_ms( dx, dy, 0 ) );
+    if( guy == nullptr ) {
+        j.write_null();
+        return s.str();
+    }
+    j.start_object();
+    j.member( "npc", guy->disp_name() );
+    j.member( "hostil", guy->is_enemy() );
+    j.member( "objetos" );
+    j.start_array();
+    const item_location en_mano = guy->get_wielded_item();
+    for( item_location &loc : guy->all_items_loc() ) {
+        if( !loc || guy->is_worn( *loc ) || ( en_mano && &*en_mano == &*loc ) ) {
+            continue;
+        }
+        j.start_object();
+        objeto( j, *loc );
+        j.end_object();
+    }
+    j.end_array();
+    j.end_object();
+    return s.str();
+}
+
 // --- el diálogo
 std::string dialogo_json()
 {
@@ -563,6 +594,52 @@ bool hacer_menus( const std::string &a, JsonObject &o )
         }
         dialogo() = std::move( dw );
         preparar_tema( *dialogo() );
+        return true;
+    }
+    if( a == "robar" ) {
+        // (lo de avatar::steal después de elegir qué: las mismas tiradas)
+        npc *guy = get_creature_tracker().creature_at<npc>( u.pos_bub() + tripoint_rel_ms( o.get_int( "dx", 0 ),
+                   o.get_int( "dy", 0 ), 0 ) );
+        if( guy == nullptr ) {
+            return true;
+        }
+        if( guy->is_enemy() ) {
+            add_msg( _( "%s is hostile!" ), guy->get_name() );
+            return true;
+        }
+        item *it = nullptr;
+        for( item_location &loc : guy->all_items_loc() ) {
+            if( loc && id_objeto( *loc ) == o.get_string( "id", "" ) ) {
+                it = loc.get_item();
+                break;
+            }
+        }
+        if( it == nullptr ) {
+            return true;
+        }
+        int mi_tirada = dice( 3, u.get_dex() );
+        if( !u.is_armed() ) {
+            mi_tirada += dice( 4, 3 );
+        }
+        if( u.has_trait( trait_id( "DEFT" ) ) ) {
+            mi_tirada += dice( 2, 6 );
+        }
+        if( u.has_trait( trait_id( "CLUMSY" ) ) ) {
+            mi_tirada -= dice( 4, 6 );
+        }
+        const int su_tirada = dice( 5, guy->get_per() );
+        const std::string nombre = it->tname();
+        if( mi_tirada >= su_tirada && !guy->is_hallucination() ) {
+            add_msg( _( "You sneakily steal %1$s from %2$s!" ), nombre, guy->get_name() );
+            u.i_add( guy->i_rem( it ) );
+        } else if( mi_tirada >= su_tirada / 2 ) {
+            add_msg( _( "You failed to steal %1$s from %2$s, but did not attract attention." ), nombre,
+                     guy->get_name() );
+        } else {
+            add_msg( _( "You failed to steal %1$s from %2$s." ), nombre, guy->get_name() );
+            guy->on_attacked( u );
+        }
+        u.mod_moves( -200 );
         return true;
     }
     if( a == "responder" ) {
