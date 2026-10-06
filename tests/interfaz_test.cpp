@@ -199,3 +199,19 @@ TEST_CASE( "interfaz_dialogo_sin_parar_el_mundo", "[interfaz]" )
     interfaz::turno();
     CHECK( interfaz::dialogo_json() == "null" );
 }
+
+// la traducción española trae «<punt.!>» y «<punc...!>» en vez de «<punc.!>» y «<punc…!>»: se entienden igual, sin el
+// aviso «Bad tag» al hablar
+TEST_CASE( "etiquetas_de_dialogo_mal_traducidas", "[interfaz]" )
+{
+    clear_avatar();
+    avatar &u = get_avatar();
+    for( std::string frase : {
+             "Adios<punt.!>", "Mierda<punt...!>", "Condenado infierno<punc...!>", "Vaya<punc....>"
+         } ) {
+        parse_tags( frase, u, u, itype_id::NULL_ID() );
+        CAPTURE( frase );
+        CHECK( frase.find( '<' ) == std::string::npos );
+        CHECK( frase.find( "????" ) == std::string::npos );
+    }
+}
