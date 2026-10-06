@@ -1,4 +1,5 @@
 #include "game.h"
+#include "interfaz.h"
 #include "realtime.h"
 #include "map_memory.h"
 
@@ -3173,8 +3174,9 @@ shared_ptr_fast<ui_adaptor> game::create_or_get_main_ui_adaptor()
         ui->on_screen_resize( [this]( ui_adaptor & ui ) {
             // remove some space for the sidebar, this is the maximal space
             // (using standard font) that the terrain window can have
-            const int sidebar_left = panel_manager::get_manager().get_width_left();
-            const int sidebar_right = panel_manager::get_manager().get_width_right();
+            // (con la interfaz web no hay barra lateral: el HUD y los mensajes los pinta la página)
+            const int sidebar_left = interfaz::activa() ? 0 : panel_manager::get_manager().get_width_left();
+            const int sidebar_right = interfaz::activa() ? 0 : panel_manager::get_manager().get_width_right();
 
             TERRAIN_WINDOW_HEIGHT = TERMY;
             TERRAIN_WINDOW_WIDTH = TERMX - ( sidebar_left + sidebar_right );
@@ -3411,6 +3413,10 @@ void game::draw( ui_adaptor &ui )
 
 void game::draw_panels( bool force_draw )
 {
+    // (con la interfaz web, la barra lateral y su registro de mensajes los sustituye la página)
+    if( interfaz::activa() ) {
+        return;
+    }
     static int previous_turn = -1;
     const int current_turn = to_turns<int>( calendar::turn - calendar::turn_zero );
     const bool draw_this_turn = current_turn > previous_turn || force_draw;

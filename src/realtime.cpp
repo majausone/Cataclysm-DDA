@@ -14,6 +14,7 @@
 #include "cached_options.h"
 #include "game.h"
 #include "input_context.h"
+#include "interfaz.h"
 #include "options.h"
 #include "output.h"
 #include "piloto.h"
@@ -400,6 +401,8 @@ void esperar_turno()
         input_context ctxt = get_default_mode_input_context();
         const std::string action = ctxt.handle_input( t );
         if( action == "TIMEOUT" ) {
+            // (las órdenes de la interfaz web, también mientras espera)
+            interfaz::turno();
             // (que se vea la velocidad y lo que pasa, de vez en cuando, mientras espera)
             const auto ahora = std::chrono::steady_clock::now();
             if( ahora - ultimo_repintado > std::chrono::milliseconds( 250 ) ) {

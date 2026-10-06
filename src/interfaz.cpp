@@ -36,6 +36,7 @@
 #include "messages.h"
 #include "npc.h"
 #include "output.h"
+#include "overmap_ui.h"
 #include "panels.h"
 #include "pathfinding.h"
 #include "proficiency.h"
@@ -602,6 +603,10 @@ static void hacer( const std::string &json )
         construction_menu( false );
         return;
     }
+    if( a == "mapa" ) {
+        ui::omap::display();
+        return;
+    }
     const tripoint_bub_ms p = casilla( u, o.get_int( "dx", 0 ), o.get_int( "dy", 0 ) );
     if( !here.inbounds( p ) ) {
         return;
@@ -710,10 +715,20 @@ extern "C" {
         s = interfaz::casilla_en_pixel_json( px, py );
         return s.c_str();
     }
-    // la orden llega en la memoria del wasm (la página la escribe con stringToUTF8)
-    EMSCRIPTEN_KEEPALIVE void cdda_ui_orden( const char *json )
+    // las órdenes: la página escribe el JSON (UTF-8) en este búfer y llama a cdda_ui_orden con su longitud
+    static char bufer_ordenes[65536];
+    EMSCRIPTEN_KEEPALIVE char *cdda_ui_bufer()
     {
-        interfaz::orden( json != nullptr ? std::string( json ) : std::string() );
+        return bufer_ordenes;
+    }
+    EMSCRIPTEN_KEEPALIVE int cdda_ui_bufer_tam()
+    {
+        return static_cast<int>( sizeof( bufer_ordenes ) );
+    }
+    EMSCRIPTEN_KEEPALIVE void cdda_ui_orden( int n )
+    {
+        n = std::clamp( n, 0, static_cast<int>( sizeof( bufer_ordenes ) ) );
+        interfaz::orden( std::string( bufer_ordenes, static_cast<size_t>( n ) ) );
     }
 }
 #endif
