@@ -2458,7 +2458,9 @@ bool game::handle_mouseview( input_context &ctxt, std::string &action )
             const std::optional<tripoint_bub_ms> mouse_pos = ctxt.get_coordinates( w_terrain,
                     ter_view_p.raw().xy(),
                     true );
-            if( mouse_pos && ( !liveview_pos || *mouse_pos != *liveview_pos ) ) {
+            // (con la interfaz web no hay «mouse view»: era parte de la barra lateral, y lo de la casilla lo dice la
+            // página al hacer clic)
+            if( mouse_pos && !interfaz::activa() && ( !liveview_pos || *mouse_pos != *liveview_pos ) ) {
                 liveview_pos = mouse_pos;
                 liveview.show( liveview_pos->raw() );
             } else if( !mouse_pos ) {
