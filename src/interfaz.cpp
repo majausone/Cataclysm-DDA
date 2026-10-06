@@ -510,11 +510,13 @@ std::string construcciones_json()
     const temp_crafting_inventory &inv = u.crafting_inventory();
     std::map<std::string, std::pair<bool, std::string>> grupos;
     std::map<std::string, std::string> categoria;
+    std::map<std::string, std::string> grupos_id;
     for( const construction &c : get_constructions() ) {
         if( !c.on_display ) {
             continue;
         }
         const std::string nombre = c.group->name();
+        grupos_id[nombre] = c.group.str();
         bool habilidad = true;
         std::string falta;
         for( const auto &sk : c.required_skills ) {
@@ -541,7 +543,20 @@ std::string construcciones_json()
     for( const auto &g : grupos ) {
         j.start_object();
         j.member( "nombre", g.first );
+        j.member( "grupo", grupos_id[g.first] );
         j.member( "categoria", categoria[g.first] );
+        // (dónde se puede, de las casillas de al lado: dx, dy)
+        if( g.second.first ) {
+            j.member( "donde" );
+            j.start_array();
+            for( const tripoint_bub_ms &p : casillas_para_construir( construction_group_str_id( grupos_id[g.first] ) ) ) {
+                j.start_array();
+                j.write( p.x() - u.pos_bub().x() );
+                j.write( p.y() - u.pos_bub().y() );
+                j.end_array();
+            }
+            j.end_array();
+        }
         j.member( "puede", g.second.first );
         j.member( "motivo", g.second.second );
         j.end_object();
@@ -734,7 +749,15 @@ static void hacer( const std::string &json )
         return;
     }
     if( a == "construir" ) {
-        construction_menu( false );
+        // (sin el menú del juego: qué grupo y en qué casilla de al lado; sin grupo, el menú de siempre)
+        if( o.has_string( "grupo" ) ) {
+            const tripoint_bub_ms donde = u.pos_bub() + tripoint_rel_ms( o.get_int( "dx", 0 ), o.get_int( "dy", 0 ), 0 );
+            if( !construir_en( construction_group_str_id( o.get_string( "grupo" ) ), donde ) ) {
+                add_msg( m_info, _( "You can't build that there." ) );
+            }
+        } else {
+            construction_menu( false );
+        }
         return;
     }
     if( a == "idioma" ) {

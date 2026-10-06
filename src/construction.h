@@ -115,6 +115,10 @@ struct construction {
 const std::vector<construction> &get_constructions();
 
 void place_construction( std::vector<construction_group_str_id> const &groups );
+// (interfaz web) las casillas de al lado donde se puede construir algo del grupo, y construirlo en una de ellas sin
+// el menú del juego (lo mismo que place_construction después de elegir la casilla)
+std::vector<tripoint_bub_ms> casillas_para_construir( const construction_group_str_id &grupo );
+bool construir_en( const construction_group_str_id &grupo, const tripoint_bub_ms &donde );
 void load_construction( const JsonObject &jo, const std::string &src );
 void reset_constructions();
 construction_id construction_menu( bool blueprint );
