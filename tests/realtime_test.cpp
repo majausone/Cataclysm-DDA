@@ -108,11 +108,40 @@ TEST_CASE( "realtime_falls_behind_without_debt_and_says_so", "[realtime]" )
     CHECK( lentos >= 190 );
     CHECK( lentos <= 201 );
     CHECK( r.retrasado );
-    // y cuando vuelve a ir ligero, a x72 sin ráfaga para «recuperar» lo perdido
+    // y cuando vuelve a ir ligero, a x72 sin ráfaga para «recuperar» lo perdido (como mucho los 50 ms del margen)
     const int ligeros = turnos_en( r, tf, 2.0, 1.0 );
-    CHECK( ligeros <= 2 * 72 + 2 );
+    CHECK( ligeros <= 2 * 72 + 5 );
     CHECK( ligeros >= 2 * 72 - 2 );
     CHECK_FALSE( r.retrasado );
+}
+
+TEST_CASE( "realtime_frame_yields_are_made_up_within_the_margin", "[realtime]" )
+{
+    // como en el navegador: turnos de 4 ms, y cada 30 ms el juego cede el control y se le van 17 ms (un fotograma).
+    // Los turnos que tocaban mientras se hacen seguidos después, y a x72 pasan 72 por segundo
+    tiempo_falso tf;
+    realtime::reloj r( [&tf]() {
+        return tf.ahora();
+    } );
+    r.poner( realtime::velocidad::x72 );
+    const instante fin = tf.t + std::chrono::seconds( 10 );
+    instante ultima_cesion = tf.t;
+    int n = 0;
+    while( tf.t < fin ) {
+        if( tf.t - ultima_cesion >= std::chrono::milliseconds( 30 ) ) {
+            ultima_cesion = tf.t;
+            tf.pasar_ms( 17.0 );
+        }
+        if( r.toca() ) {
+            r.empezar();
+            n++;
+            tf.pasar_ms( 4.0 );
+        } else {
+            tf.pasar_ms( 0.5 );
+        }
+    }
+    CHECK( n >= 10 * 72 - 5 );
+    CHECK( n <= 10 * 72 + 5 );
 }
 
 TEST_CASE( "realtime_changing_speed_starts_counting_from_now", "[realtime]" )
