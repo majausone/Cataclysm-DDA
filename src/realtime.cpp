@@ -16,6 +16,7 @@
 #include "input_context.h"
 #include "options.h"
 #include "output.h"
+#include "piloto.h"
 #include "player_activity.h"
 #include "translations.h"
 #include "type_id.h"
@@ -192,6 +193,10 @@ bool velocidad_de_opciones = false;
 // ¿le toca al jugador decidir en este turno?  (si no, el turno pasa solo: actividad, sueño, moviéndose...)
 bool jugador_decide()
 {
+    // (con el piloto automático, decide la IA: el jugador solo mira)
+    if( piloto::activo() ) {
+        return false;
+    }
     const avatar &u = get_avatar();
     return !u.has_effect( effect_sleep ) && u.get_moves() > 0 && !u.activity && !u.has_destination();
 }
@@ -440,6 +445,8 @@ bool manejar_accion( const std::string &action )
         bajar();
     } else if( action == "REALTIME_PAUSE" ) {
         alternar_pausa();
+    } else if( action == "AUTOPILOT" ) {
+        piloto::pedir( !piloto::activo() );
     } else {
         return false;
     }
