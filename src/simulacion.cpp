@@ -305,6 +305,33 @@ void turno()
 
 } // namespace simulacion
 
+#elif defined(__EMSCRIPTEN__)
+
+// en la web el que juega y vigila es la página (tools/tiempo-real/cazafallos-web.mjs): aquí solo se cuentan los latidos
+#include <emscripten.h>
+
+namespace
+{
+int latidos_web = 0;
+} // namespace
+
+namespace simulacion
+{
+void latido()
+{
+    latidos_web++;
+}
+void turno() {}
+} // namespace simulacion
+
+extern "C" {
+    // cuántas veces ha mirado el teclado el juego (si deja de subir con la página viva, algo no acaba)
+    EMSCRIPTEN_KEEPALIVE int cdda_latidos()
+    {
+        return latidos_web;
+    }
+}
+
 #else
 
 namespace simulacion
