@@ -293,8 +293,8 @@ void turno()
     if( u.is_dead_state() ) {
         muerto = true;
     }
-    // el estado, cada 1000 turnos (lo apunta el vigilante cada 10 s)
-    if( turnos.load() % 1000 == 1 ) {
+    // el estado, cada 100 turnos (lo apunta el vigilante cada 10 s)
+    if( turnos.load() % 100 == 1 ) {
         std::ostringstream e;
         e << to_string( calendar::turn ) << ", " << ( modo == "piloto" ? piloto::estado_json() : u.get_name() +
                 " en " + u.pos_abs().to_string() );

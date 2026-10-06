@@ -233,7 +233,11 @@ void turno()
         if( p != nullptr && p->get_killer() != nullptr ) {
             motivo += " (lo ha matado " + p->get_killer()->disp_name() + ")";
         }
-        motivo += ", " + to_string_time_of_day( calendar::turn );
+        motivo += ", " + to_string_time_of_day( calendar::turn ) + "; últimos mensajes:";
+        // (si ya no está, lo más probable es que haya muerto y el juego lo haya quitado: lo dicen los mensajes)
+        for( const std::pair<std::string, std::string> &m : Messages::recent_messages( 8 ) ) {
+            motivo += " [" + m.first + " " + m.second + "]";
+        }
         desactivar();
         return;
     }
