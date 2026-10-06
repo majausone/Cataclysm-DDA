@@ -152,7 +152,13 @@ bool hay_movimiento()
 namespace
 {
 int imagenes_pintadas = 0;
+reloj_t::time_point ultima_imagen = reloj_t::now();
 } // namespace
+
+int64_t ms_desde_imagen()
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>( reloj_t::now() - ultima_imagen ).count();
+}
 
 int imagenes()
 {
@@ -163,6 +169,7 @@ void nueva_imagen()
 {
     imagenes_pintadas++;
     const reloj_t::time_point ahora = reloj_t::now();
+    ultima_imagen = ahora;
     for( auto it = pasos().begin(); it != pasos().end(); ) {
         if( segundos( it->second.visto, ahora ) > 5.0 ) {
             it = pasos().erase( it );
