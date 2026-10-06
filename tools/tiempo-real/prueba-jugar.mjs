@@ -6,7 +6,7 @@
 import { mkdirSync } from 'node:fs';
 const { chromium, devices } = await import('playwright');
 const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
-const URL = arg('url', 'http://localhost:8095/'), FOTOS = arg('fotos', 'fotos-jugar'), MOVIL = process.argv.includes('--movil');
+const URL = arg('url', 'http://localhost:8096/'), FOTOS = arg('fotos', 'fotos-jugar'), MOVIL = process.argv.includes('--movil');
 mkdirSync(FOTOS, { recursive: true });
 const b = await chromium.launch({ headless: true, args: ['--enable-features=WebAssemblyExperimentalJSPI', '--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const ctx = await b.newContext(MOVIL ? { ...devices['Pixel 7'] } : { viewport: { width: 1366, height: 820 } });

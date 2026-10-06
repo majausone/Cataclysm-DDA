@@ -243,3 +243,15 @@ canvas.icono { image-rendering: pixelated; flex: none; display: inline-block; ve
 .celda-donde.vale { border-color: var(--acento); background: rgba(224,168,79,0.15); color: var(--acento2); cursor: pointer; }
 .celda-donde.vale:hover { background: rgba(224,168,79,0.3); }
 .celda-donde.yo { color: var(--info); }
+
+/* las listas y preguntas del juego */
+#ventana-lista { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(520px, 94vw); max-height: 80vh; display: flex; flex-direction: column; z-index: 12; }
+#ventana-lista .texto-lista { margin-bottom: 10px; line-height: 1.45; }
+#ventana-lista .opciones-lista { display: flex; flex-direction: column; gap: 4px; }
+#ventana-lista .opcion-lista { display: flex; align-items: center; gap: 10px; text-align: left; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--borde); background: rgba(255, 255, 255, 0.03); color: inherit; font: inherit; cursor: pointer; }
+#ventana-lista .opcion-lista:hover:not([disabled]) { border-color: var(--acento); background: rgba(224, 168, 79, 0.10); }
+#ventana-lista .opcion-lista[disabled] { opacity: 0.45; cursor: default; }
+#ventana-lista .opcion-lista .nombre { flex: 1; min-width: 0; }
+#ventana-lista .opcion-lista small { display: block; color: var(--suave); font-size: 11px; }
+#ventana-lista .opcion-lista kbd { min-width: 20px; text-align: center; padding: 1px 5px; border-radius: 5px; border: 1px solid var(--borde2); color: var(--acento); font-size: 11px; }
+#ventana-lista .botones-pregunta { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }

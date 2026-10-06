@@ -60,7 +60,7 @@
       coger_titulo: 'Coger del suelo', coger_sel: 'Coger lo marcado', todos: 'Todos', ninguno: 'Ninguno', suelo_vacio: 'No hay nada.',
       el_mundo_sigue: 'El mundo sigue mientras hablas.', adios: 'Despedirse',
       titulo: 'Cataclysm: Dark Days Ahead', subtitulo: 'en tiempo real', nueva: 'Partida nueva', cargar: 'Cargar partida',
-      nombre: 'Nombre', nombre_ph: 'Déjalo vacío para uno al azar', sexo: 'Sexo', hombre: 'Hombre', mujer: 'Mujer', empezar: 'Empezar',
+      nombre: 'Nombre', nombre_ph: 'Déjalo vacío para uno al azar', sexo: 'Sexo', hombre: 'Hombre', mujer: 'Mujer', empezar: 'Empezar', pregunta: 'Pregunta', elige: 'Elige',
       volver: 'Volver', sin_partidas: 'No hay partidas guardadas.', cargando: 'Cargando el mundo…', has_muerto: 'Has muerto',
       sobreviviste: 'Sobreviviste', dias: 'días', horas: 'horas', idioma: 'Idioma', pantalla_completa: 'Pantalla completa',
       guardar: 'Guardar la partida', salir: 'Guardar y salir al menú', guardado: 'Partida guardada.',
@@ -90,7 +90,7 @@
       coger_titulo: 'Pick up from the ground', coger_sel: 'Pick up selected', todos: 'All', ninguno: 'None', suelo_vacio: 'Nothing here.',
       el_mundo_sigue: 'The world goes on while you talk.', adios: 'Leave',
       titulo: 'Cataclysm: Dark Days Ahead', subtitulo: 'in real time', nueva: 'New game', cargar: 'Load game',
-      nombre: 'Name', nombre_ph: 'Leave empty for a random one', sexo: 'Sex', hombre: 'Male', mujer: 'Female', empezar: 'Start',
+      nombre: 'Name', nombre_ph: 'Leave empty for a random one', sexo: 'Sex', hombre: 'Male', mujer: 'Female', empezar: 'Start', pregunta: 'Question', elige: 'Choose',
       volver: 'Back', sin_partidas: 'No saved games.', cargando: 'Loading the world…', has_muerto: 'You died',
       sobreviviste: 'You survived', dias: 'days', horas: 'hours', idioma: 'Language', pantalla_completa: 'Fullscreen',
       guardar: 'Save game', salir: 'Save and quit to menu', guardado: 'Game saved.',
@@ -897,23 +897,52 @@
   function teclaDireccion(e) {
     if (!DIRECCIONES[e.code] || !listo() || !enPartida) return;
     if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
-    if (ventanas() > 1) { if (pulsadas.size) { pulsadas.clear(); enviarDireccion(); } return; }
+    if (ventanas() > 1 || listaAbierta()) { if (pulsadas.size) { pulsadas.clear(); enviarDireccion(); } return; }
     e.preventDefault(); e.stopPropagation();
     if (e.type === 'keydown') pulsadas.add(e.code); else pulsadas.delete(e.code);
     enviarDireccion();
   }
 
+  // ------------------------------------------------------------------ las listas y preguntas del juego
+  // («¿qué haces con lo que llevas en la mano?», «¿seguro?»...): el juego no pinta las suyas y espera a que se elija
+  // aquí (o con sus teclas de siempre)
+  const ventanaLista = crear(`<div id="ventana-lista" class="ventana ui oculto"><div class="cabeza"><i class="fa-solid fa-circle-question"></i><span class="titulo"></span><button class="cerrar"><i class="fa-solid fa-xmark"></i></button></div><div class="cuerpo"></div></div>`);
+  $('.cerrar', ventanaLista).onclick = () => ex().cdda_ui_elegir(-1);
+  let firmaLista = null;
+  const listaAbierta = () => !ventanaLista.classList.contains('oculto');
+  function pintarLista() {
+    const l = ex() && ex().cdda_ui_lista ? json('cdda_ui_lista') : null;
+    const firma = l ? JSON.stringify(l) : null;
+    if (firma === firmaLista) return;
+    firmaLista = firma;
+    if (!l) { ventanaLista.classList.add('oculto'); return; }
+    $('.titulo', ventanaLista).textContent = limpio(l.titulo || '') || T(l.pregunta ? 'pregunta' : 'elige');
+    const cu = $('.cuerpo', ventanaLista);
+    cu.innerHTML = '';
+    if (l.texto) cu.appendChild(crear(`<div class="texto-lista">${esc(limpio(l.texto)).replace(/\n/g, '<br>')}</div>`));
+    const caja = crear(`<div class="${l.pregunta ? 'botones-pregunta' : 'opciones-lista'}"></div>`);
+    l.opciones.forEach((o, i) => {
+      const b = crear(`<button class="${l.pregunta ? 'boton' + (i === 0 ? ' principal' : '') : 'opcion-lista'}" ${o.activa ? '' : 'disabled'}>${o.tecla && !l.pregunta ? `<kbd>${esc(o.tecla)}</kbd>` : ''}<span class="nombre">${esc(limpio(o.texto))}${o.desc ? `<small>${esc(limpio(o.desc))}</small>` : ''}</span>${o.extra ? `<small class="extra">${esc(limpio(o.extra))}</small>` : ''}</button>`);
+      b.onclick = () => ex().cdda_ui_elegir(i);
+      caja.appendChild(b);
+    });
+    cu.appendChild(caja);
+    $('.cerrar', ventanaLista).classList.toggle('oculto', !l.cancelable);
+    ventanaLista.classList.remove('oculto');
+  }
+
   // ------------------------------------------------------------------ arranque y refresco
   let montado = false, enPartida = false, ultimoEstado = null;
   function montar() {
-    document.body.append(hud, actividad, avisos, botonera, panel, menuCasilla, ventanaCoger, ventanaObjeto, dialogo, ventanaOpciones, inicio);
+    document.body.append(hud, actividad, avisos, botonera, panel, menuCasilla, ventanaCoger, ventanaObjeto, dialogo, ventanaOpciones, ventanaLista, inicio);
     window.addEventListener('mousedown', (e) => { if (!menuCasilla.contains(e.target)) cerrarMenuCasilla(); }, true);
     ['mousedown', 'mouseup', 'click'].forEach((t) => window.addEventListener(t, clicEnMapa, true));
     window.addEventListener('keydown', teclaDireccion, true);
     window.addEventListener('keyup', teclaDireccion, true);
     window.addEventListener('blur', () => { pulsadas.clear(); if (enPartida) enviarDireccion(); });
     window.addEventListener('keydown', (e) => {
-      if (!enPartida || ventanas() > 1) return;
+      // (con una lista del juego abierta, las teclas son suyas: sus atajos, flechas, Escape...)
+      if (!enPartida || ventanas() > 1 || listaAbierta()) return;
       if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
       if (e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); panel.classList.contains('oculto') ? abrirPanel() : cerrarPanel(); return; }
       // las teclas de siempre del juego abren lo nuestro, que no para el mundo (las suyas son menús que lo paran)
@@ -970,6 +999,7 @@
     if (!antes) { inicio.classList.add('oculto'); esperandoPartida = false; primerosMensajes = true; totalVisto = -1; }
     if (e.idioma && e.idioma !== idioma) { idioma = e.idioma; }
     ultimoEstado = e;
+    pintarLista();
     // (con una ventana del juego abierta, lo nuestro se aparta para no taparla)
     const ventanaDelJuego = ventanas() > 1;
     [hud, botonera].forEach((x) => x.classList.toggle('oculto', ventanaDelJuego));
