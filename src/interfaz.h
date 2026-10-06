@@ -39,6 +39,18 @@ bool activa();
 void poner_idioma( const std::string &idioma );
 std::string idioma();
 
+// --- inicio y muerte (Encargo 8)
+// lo que pide la página en el menú principal ({"a":"nueva","nombre":...,"hombre":true} o
+// {"a":"cargar","mundo":...,"partida":...}); el menú principal lo mira cada 100 ms
+void pedir_menu_principal( const std::string &json );
+bool tomar_pedido_menu_principal( std::string &json );
+// los mundos y sus partidas guardadas
+std::string partidas_json();
+// al morir: se guarda un resumen para la pantalla de muerte de la página
+void al_morir();
+std::string muerte_json();
+void olvidar_muerte();
+
 // --- segunda parte (interfaz_menus.cpp, Encargo 8): los menús como en un videojuego
 // las imágenes del tileset (ruta en el sistema de ficheros del juego, tamaño de sprite, desde qué índice, cuántos)
 std::string atlas_json();

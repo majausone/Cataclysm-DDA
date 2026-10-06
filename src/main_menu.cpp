@@ -1,4 +1,6 @@
 #include "main_menu.h"
+#include "interfaz.h"
+#include "json_loader.h"
 
 #include <algorithm>
 #include <array>
@@ -676,8 +678,42 @@ bool main_menu::opening_screen()
     EM_ASM( window.dispatchEvent( new Event( 'menuready' ) ); );
 #endif
 
+    // (interfaz web: el menú mira cada 100 ms si la página ha pedido una partida nueva o cargar una)
+    if( interfaz::activa() ) {
+        ctxt.set_timeout( 100 );
+    }
     while( !start ) {
         ui_manager::redraw();
+        std::string pedido;
+        if( interfaz::activa() && interfaz::tomar_pedido_menu_principal( pedido ) ) {
+            try {
+                JsonObject o = json_loader::from_string( pedido ).get_object();
+                o.allow_omitted_members();
+                const std::string a = o.get_string( "a", "" );
+                if( a == "nueva" ) {
+                    interfaz::olvidar_muerte();
+                    start = partida_nueva_web( o.get_string( "nombre", "" ), o.get_bool( "hombre", true ) );
+                } else if( a == "cargar" ) {
+                    WORLD *w = world_generator->get_world( o.get_string( "mundo", "" ) );
+                    if( w != nullptr ) {
+                        for( const save_t &p : w->world_saves ) {
+                            if( p.decoded_name() == o.get_string( "partida", "" ) ) {
+                                interfaz::olvidar_muerte();
+                                start = main_menu::load_game( w->world_name, p );
+                                load_game = start;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch( const std::exception &e ) {
+                debugmsg( "interfaz: pedido del menú principal mal formado: %s", e.what() );
+            }
+            if( start ) {
+                break;
+            }
+            continue;
+        }
         std::string action = ctxt.handle_input();
         input_event sInput = ctxt.get_raw_input();
 
@@ -931,6 +967,43 @@ bool main_menu::opening_screen()
             }
         }
     }
+    return true;
+}
+
+// (interfaz web) una partida nueva como «Play Now!» (el escenario por defecto, personaje al azar), con el nombre y el
+// sexo que se hayan elegido en la página
+bool main_menu::partida_nueva_web( const std::string &nombre, bool hombre )
+{
+    avatar &pc = get_avatar();
+    on_out_of_scope cleanup( [&pc]() {
+        pc = avatar();
+        world_generator->set_active_world( nullptr );
+    } );
+    g->gamemode = nullptr;
+    WORLD *world = world_generator->pick_world( false, true );
+    if( world == nullptr ) {
+        return false;
+    }
+    world_generator->set_active_world( world );
+    try {
+        g->setup();
+    } catch( const std::exception &err ) {
+        debugmsg( "Error: %s", err.what() );
+        return false;
+    }
+    if( !pc.create( character_type::NOW ) ) {
+        MAPBUFFER.clear();
+        overmap_buffer.clear();
+        return false;
+    }
+    pc.male = hombre;
+    if( !nombre.empty() ) {
+        pc.name = nombre;
+    }
+    if( !g->start_game() ) {
+        return false;
+    }
+    cleanup.cancel();
     return true;
 }
 

@@ -36,6 +36,7 @@
 #include "messages.h"
 #include "npc.h"
 #include "options.h"
+#include "worldfactory.h"
 #include "output.h"
 #include "translations.h"
 #include "overmap_ui.h"
@@ -183,6 +184,91 @@ std::string idioma()
 {
     const std::string l = get_option<std::string>( "USE_LANG" );
     return l.rfind( "es", 0 ) == 0 ? "es" : "en";
+}
+
+namespace
+{
+std::string &pedido_menu()
+{
+    static std::string p;
+    return p;
+}
+std::string &resumen_muerte()
+{
+    static std::string r;
+    return r;
+}
+} // namespace
+
+void pedir_menu_principal( const std::string &json )
+{
+    pedido_menu() = json;
+}
+
+bool tomar_pedido_menu_principal( std::string &json )
+{
+    if( pedido_menu().empty() ) {
+        return false;
+    }
+    json = pedido_menu();
+    pedido_menu().clear();
+    return true;
+}
+
+std::string partidas_json()
+{
+    std::ostringstream s;
+    JsonOut j( s );
+    j.start_array();
+    if( world_generator ) {
+        for( const std::string &nombre : world_generator->all_worldnames() ) {
+            WORLD *w = world_generator->get_world( nombre );
+            if( w == nullptr ) {
+                continue;
+            }
+            j.start_object();
+            j.member( "mundo", nombre );
+            j.member( "partidas" );
+            j.start_array();
+            for( const save_t &p : w->world_saves ) {
+                j.write( p.decoded_name() );
+            }
+            j.end_array();
+            j.end_object();
+        }
+    }
+    j.end_array();
+    return s.str();
+}
+
+void al_morir()
+{
+    avatar &u = get_avatar();
+    std::ostringstream s;
+    JsonOut j( s );
+    j.start_object();
+    j.member( "nombre", u.get_name() );
+    j.member( "dias", to_days<int>( calendar::turn - calendar::start_of_game ) );
+    j.member( "horas", to_hours<int>( calendar::turn - calendar::start_of_game ) % 24 );
+    j.member( "hora", to_string_time_of_day( calendar::turn ) );
+    j.member( "mensajes" );
+    j.start_array();
+    for( const Messages::mensaje_tipado &m : Messages::recent_messages_typed( 8 ) ) {
+        j.write( remove_color_tags( m.texto ) );
+    }
+    j.end_array();
+    j.end_object();
+    resumen_muerte() = s.str();
+}
+
+std::string muerte_json()
+{
+    return resumen_muerte().empty() ? std::string( "null" ) : resumen_muerte();
+}
+
+void olvidar_muerte()
+{
+    resumen_muerte().clear();
 }
 
 bool activa()
@@ -800,6 +886,27 @@ extern "C" {
     EMSCRIPTEN_KEEPALIVE int cdda_ui_idioma()
     {
         return interfaz::idioma() == "es" ? 1 : 0;
+    }
+    // el menú principal: lo que pide la página (en el búfer) y los mundos con sus partidas; y la última muerte
+    EMSCRIPTEN_KEEPALIVE void cdda_ui_menu_principal( int n )
+    {
+        interfaz::pedir_menu_principal( bufer_texto( n ) );
+    }
+    EMSCRIPTEN_KEEPALIVE const char *cdda_ui_partidas()
+    {
+        static std::string s;
+        s = interfaz::partidas_json();
+        return s.c_str();
+    }
+    EMSCRIPTEN_KEEPALIVE const char *cdda_ui_muerte()
+    {
+        static std::string s;
+        s = interfaz::muerte_json();
+        return s.c_str();
+    }
+    EMSCRIPTEN_KEEPALIVE void cdda_ui_olvidar_muerte()
+    {
+        interfaz::olvidar_muerte();
     }
     EMSCRIPTEN_KEEPALIVE const char *cdda_ui_atlas()
     {
