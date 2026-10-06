@@ -1038,5 +1038,9 @@
     pintarDialogo();
   }
   setInterval(refrescar, 250);
+  // el movimiento suave, al ritmo del navegador: en cada fotograma, si el juego está esperando y algo se mueve, que
+  // repinte (si no, solo pintaría una imagen por tic)
+  const fotograma = () => { try { if (listo() && enPartida && ex().cdda_rt_pintar) ex().cdda_rt_pintar(); } catch { /* aún no */ } requestAnimationFrame(fotograma); };
+  requestAnimationFrame(fotograma);
   window.interfazCdda = { abrirPanel, cerrarPanel, abrirPestana, ordenar, json, jsonCon, icono, ponerIdioma };
 })();

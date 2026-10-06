@@ -29,7 +29,12 @@ const esperar = async (ms) => { const t0 = Date.now(); while (Date.now() - t0 < 
 const comprobar = (n, ok, info = {}) => { if (!ok) mal++; console.log(ok ? 'OK ' : 'MAL', n, JSON.stringify(info)); };
 const estado = () => p.evaluate(() => { try { const e = window.interfazCdda.json('cdda_ui_estado'); return e && { hora: e.hora, pos: e.pos, enCamino: e.enCamino, actividad: e.actividad && e.actividad.id, ventanas: wasmExports.cdda_ventanas(), turno: wasmExports.cdda_turno(), avisos: wasmExports.cdda_avisos ? wasmExports.cdda_avisos() : 0 }; } catch { return null; } });
 const clic = async (sel) => { const l = p.locator(sel).first(); await l.click({ timeout: 5000 }); };
-const intentar = async (n, f) => { try { await f(); } catch (e) { comprobar(n, false, { error: e.message.split('\n')[0] }); } };
+const intentar = async (n, f) => {
+  try { await f(); } catch (e) {
+    comprobar(n, false, { error: e.message.split('\n').filter((l) => /intercepts|not visible|not enabled|Timeout|waiting for|resolved/.test(l)).slice(0, 6).join(' | ') });
+    await foto('fallo-' + n.replace(/[^a-z]+/gi, '-'));
+  }
+};
 
 await p.goto(URL);
 await p.waitForSelector('#inicio:not(.oculto)', { timeout: 240000 });
