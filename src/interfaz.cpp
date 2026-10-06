@@ -34,6 +34,8 @@
 #include "map.h"
 #include "mapdata.h"
 #include "messages.h"
+#include "monster.h"
+#include "mtype.h"
 #include "npc.h"
 #include "options.h"
 #include "worldfactory.h"
@@ -44,6 +46,7 @@
 #include "pathfinding.h"
 #include "proficiency.h"
 #include "realtime.h"
+#include "suave.h"
 #include "recipe.h"
 #include "recipe_dictionary.h"
 #include "requirements.h"
@@ -306,6 +309,9 @@ std::string estado_json()
     j.member( "temperatura", print_temperature( get_weather().temperature ) );
     j.member( "temperaturaC", units::to_celsius( get_weather().temperature ) );
     j.member( "exterior", get_map().is_outside( u.pos_bub() ) );
+    // (dónde está, en casillas absolutas, y si va camino de algún sitio: para las pruebas de andar)
+    j.member( "pos", std::vector<int> { u.pos_abs().x(), u.pos_abs().y(), u.pos_abs().z() } );
+    j.member( "enCamino", u.has_destination() );
     const item_location en_mano = u.get_wielded_item();
     j.member( "enMano", en_mano ? remove_color_tags( en_mano->tname() ) : std::string() );
     j.member( "enManoTipo", en_mano ? en_mano->typeId().str() : std::string() );
@@ -619,8 +625,13 @@ std::string casilla_json( int dx, int dy )
     j.member( "visible", visible );
     if( visible ) {
         j.member( "terreno", here.ter( p ).obj().name() );
+        // (para «Mirar», en la página: lo que dice el juego de cada cosa)
+        j.member( "descTerreno", here.ter( p ).obj().description.translated() );
+        j.member( "idTerreno", here.ter( p ).id().str() );
         if( here.has_furn( p ) ) {
             j.member( "mueble", here.furn( p ).obj().name() );
+            j.member( "descMueble", here.furn( p ).obj().description.translated() );
+            j.member( "idMueble", here.furn( p ).id().str() );
         }
         j.member( "objetos" );
         j.start_array();
@@ -637,6 +648,15 @@ std::string casilla_json( int dx, int dy )
             if( c != &u ) {
                 j.member( "criatura", c->disp_name() );
                 j.member( "hostil", c->attitude_to( u ) == Creature::Attitude::HOSTILE );
+                j.member( "descCriatura" );
+                j.start_array();
+                for( const std::string &l : c->extended_description() ) {
+                    j.write( remove_color_tags( l ) );
+                }
+                j.end_array();
+                if( const monster *m = c->as_monster() ) {
+                    j.member( "tipoCriatura", m->type->id.str() );
+                }
             }
         }
         if( const optional_vpart_position vp = here.veh_at( p ) ) {
@@ -810,8 +830,6 @@ static void hacer( const std::string &json )
         } else {
             here.ter( p ).obj().examine( u, p );
         }
-    } else if( a == "mirar" ) {
-        g->look_around();
     } else if( a == "hablar" ) {
         if( npc *guy = get_creature_tracker().creature_at<npc>( p ) ) {
             u.talk_to( get_talker_for( *guy ) );
@@ -833,6 +851,8 @@ static void hacer( const std::string &json )
 void turno()
 {
     turno_menus();
+    // (la tecla mantenida cambia a mitad de paso: se gira al momento)
+    suave::girar_jugador( realtime::direccion_x(), realtime::direccion_y() );
     while( !ordenes().empty() ) {
         const std::string json = ordenes().front();
         ordenes().pop_front();

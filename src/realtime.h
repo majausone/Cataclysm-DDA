@@ -128,6 +128,9 @@ std::string tomar_accion_pendiente();
 void mantener_direccion( int dx, int dy );
 // la acción de andar hacia la dirección mantenida ("" si no hay)
 std::string accion_direccion();
+// la dirección mantenida (de -1 a 1; 0, 0 si no hay)
+int direccion_x();
+int direccion_y();
 // si es una de las acciones del tiempo real (velocidad, pausa, piloto automático), la hace y devuelve true
 bool manejar_accion( const std::string &action );
 

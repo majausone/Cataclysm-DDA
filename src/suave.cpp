@@ -6,12 +6,16 @@
 #include <unordered_map>
 
 #include "avatar.h"
+#include "avatar_action.h"
 #include "cached_options.h"
 #include "character.h"
 #include "coordinates.h"
 #include "creature.h"
+#include "creature_tracker.h"
 #include "map.h"
 #include "realtime.h"
+#include "trap.h"
+#include "vpart_position.h"
 
 namespace suave
 {
@@ -166,6 +170,68 @@ void nueva_imagen()
             ++it;
         }
     }
+}
+
+namespace
+{
+struct paso_jugador_t {
+    bool hay = false;
+    tripoint_abs_ms desde;
+    int moves_antes = 0;
+    reloj_t::time_point cuando;
+};
+paso_jugador_t paso_jugador;
+} // namespace
+
+void anotar_paso_jugador( const tripoint_abs_ms &desde, int moves_antes )
+{
+    paso_jugador.hay = true;
+    paso_jugador.desde = desde;
+    paso_jugador.moves_antes = moves_antes;
+    paso_jugador.cuando = reloj_t::now();
+}
+
+bool girar_jugador( int dx, int dy )
+{
+    if( !paso_jugador.hay || ( dx == 0 && dy == 0 ) || !realtime::activo() ) {
+        return false;
+    }
+    avatar &u = get_avatar();
+    map &here = get_map();
+    const tripoint_abs_ms a = paso_jugador.desde;
+    const tripoint_abs_ms b = u.pos_abs();
+    const tripoint_abs_ms c = a + tripoint_rel_ms( dx, dy, 0 );
+    // (solo en el primer tercio del paso: más tarde, ya casi ha llegado y el giro sale del paso siguiente)
+    const auto it = pasos().find( &u );
+    const double duracion = it != pasos().end() ? std::max( 0.1, it->second.duracion ) : 1.0;
+    if( segundos( paso_jugador.cuando, reloj_t::now() ) > duracion / 3.0 ) {
+        paso_jugador.hay = false;
+        return false;
+    }
+    if( b == a || b.z() != a.z() || std::abs( b.x() - a.x() ) > 1 || std::abs( b.y() - a.y() ) > 1 ||
+        ( b.x() - a.x() == dx && b.y() - a.y() == dy ) || c == b ) {
+        return false;
+    }
+    const tripoint_bub_ms ab = here.get_bub( a );
+    const tripoint_bub_ms bb = here.get_bub( b );
+    const tripoint_bub_ms cb = here.get_bub( c );
+    if( !here.inbounds( ab ) || !here.inbounds( cb ) || here.impassable( cb ) ||
+        get_creature_tracker().creature_at( cb ) != nullptr || here.veh_at( cb ) || here.veh_at( bb ) ||
+        here.veh_at( ab ) || !here.tr_at( bb ).is_null() || here.has_field_at( bb ) || u.is_mounted() ||
+        u.in_vehicle ) {
+        return false;
+    }
+    paso_jugador.hay = false;
+    const int moves_ahora = u.get_moves();
+    u.setpos( here, ab, false );
+    u.set_moves( paso_jugador.moves_antes );
+    if( !avatar_action::move( u, here, tripoint_rel_ms( dx, dy, 0 ) ) ) {
+        // (no ha podido: se queda donde iba, con lo que le costó)
+        u.setpos( here, bb, false );
+        u.set_moves( moves_ahora );
+        return false;
+    }
+    return true;
 }
 
 } // namespace suave
