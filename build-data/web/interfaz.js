@@ -9,7 +9,8 @@
   'use strict';
   const $ = (sel, raiz = document) => raiz.querySelector(sel);
   const crear = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
-  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  // (sin las etiquetas de color del juego, que a veces vienen en los nombres)
+  const esc = (s) => String(s ?? '').replace(/<\/?color[^>]*>/g, '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   // --- el enchufe
   const ex = () => window.wasmExports;
@@ -179,7 +180,7 @@
     const pintar = () => {
       const q = buscar.value.toLowerCase();
       const grupos = { 'En la mano': [], 'Puesto': [], 'Llevas': [] };
-      items.filter((it) => !q || it.nombre.toLowerCase().includes(q)).forEach((it) => {
+      items.filter((it) => it.nombre !== 'none' && (!q || it.nombre.toLowerCase().includes(q))).forEach((it) => {
         (it.enMano ? grupos['En la mano'] : it.puesto ? grupos.Puesto : grupos.Llevas).push(it);
       });
       lista.innerHTML = '';
@@ -350,7 +351,11 @@
     const e = json('cdda_ui_estado');
     if (!e) { [hud, registro, boton].forEach((x) => x.classList.add('oculto')); return; }
     if (!montado) { montar(); montado = true; }
-    [hud, registro, boton].forEach((x) => x.classList.remove('oculto'));
+    // (con una ventana del juego abierta, un diálogo, su inventario, el mapa..., el HUD y lo demás se apartan para no
+    // taparla; vuelven al cerrarla)
+    const ventanaDelJuego = ventanas() > 1 && panel.classList.contains('oculto');
+    [hud, registro, boton].forEach((x) => x.classList.toggle('oculto', ventanaDelJuego));
+    if (ventanaDelJuego) cerrarMenuCasilla();
     ultimoEstado = e;
     pintarHud(e);
     actualizarMensajes();

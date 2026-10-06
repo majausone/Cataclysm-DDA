@@ -45,7 +45,9 @@
 
 .necesidades { display: grid; grid-template-columns: 18px 1fr; gap: 5px 8px; margin-top: 8px; align-items: center; }
 .necesidades i { text-align: center; color: var(--suave); }
-.necesidad .rotulo { display: flex; justify-content: space-between; font-size: 11px; }
+.necesidad { min-width: 0; }
+.necesidad .rotulo { display: flex; justify-content: space-between; gap: 6px; font-size: 11px; }
+.necesidad .rotulo span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .necesidad .rotulo span:last-child { color: var(--suave); }
 .barra { height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; margin-top: 2px; }
 .barra > div { height: 100%; border-radius: 3px; transition: width 0.4s ease; }

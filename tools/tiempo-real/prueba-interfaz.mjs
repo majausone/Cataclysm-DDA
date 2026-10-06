@@ -89,9 +89,13 @@ if (npc) {
   await esperar(p, 2500);
   const e = await estado(p);
   comprobar('«Hablar» abre el diálogo', e.ventanas > 1, e);
+  const tapado = await p.evaluate(() => !document.getElementById('hud').classList.contains('oculto') || !document.getElementById('registro').classList.contains('oculto'));
+  comprobar('con el diálogo abierto, el HUD y los mensajes se apartan', !tapado);
   await p.screenshot({ path: `${FOTOS}/4-dialogo.png` });
   // salir del diálogo: Escape (y si pregunta, la última respuesta)
-  for (let i = 0; i < 6 && (await estado(p)).ventanas > 1; i++) { await p.keyboard.press('Escape'); await esperar(p, 800); }
+  // (algunos NPC no tienen respuesta de despedida y Escape no cierra: entonces se contesta, y se confirma con «y»)
+  const salir = ['Escape', 'Escape', 'Escape', 'd', 'y', 'c', 'y', 'b', 'y', 'a', 'y', 'Escape', 'Escape'];
+  for (let i = 0; i < salir.length && (await estado(p)).ventanas > 1; i++) { await p.keyboard.press(salir[i]); await esperar(p, 800); }
   const t0 = (await estado(p)).turno; await esperar(p, 3000); const e2 = await estado(p);
   comprobar('después de hablar, el juego sigue (no se cuelga)', e2.ventanas <= 1 && e2.turno > t0, { ...e2, turnos: e2.turno - t0 });
 }
