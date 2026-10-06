@@ -1,60 +1,81 @@
 # La interfaz de la versión web
 
-Encargo 7 (B). En el navegador, el juego solo dibuja el mapa; todo lo demás es HTML y JavaScript alrededor
-(rama `tiempo-real-web`: `build-data/web/interfaz.js` y `interfaz.css`), y se cambia sin recompilar el juego.
+Encargos 7 (B) y 8. En el navegador, el juego solo dibuja el mapa; todo lo demás es HTML y JavaScript
+alrededor (rama `tiempo-real-web`: `build-data/web/interfaz.js` e `interfaz.css`), y se cambia sin
+recompilar el juego. **Nada para el mundo**: ni los menús, ni el panel, ni hablar; el tiempo va siempre a 24
+tics por segundo (ver TIEMPO-24.md).
 
 ## Qué hay
 
-- **HUD** (arriba a la izquierda, plegable): la hora y el día de la estación; el tiempo y la temperatura;
-  la velocidad (pausa y cuánto dura el día: 2 h, 1 h o 30 min); las necesidades con icono, texto y barra
-  (hambre, sed, sueño, temperatura, ánimo, aguante, dolor); la salud de cada parte del cuerpo, con lo que
-  sangra o está roto; y lo que llevas en la mano.
-- **Mensajes** (abajo a la izquierda, recogible): con icono y color según el tipo (bueno, malo, aviso,
-  información) y filtros de combate, salud y ambiente. Sin los de depuración.
-- **Menú** (el botón redondo o Tab): un panel con pestañas. Mientras está abierto, el juego está en pausa,
-  como con sus propios menús; al cerrarlo, sigue a su velocidad.
-  - **Inventario:** lo que llevas en la mano, lo que llevas puesto y lo demás, con buscador y, en cada cosa,
-    solo lo que se puede hacer con ella (comer, ponerse, quitarse, empuñar, leer, usar, soltar).
-  - **Fabricar:** lo que puedes hacer ya; lo que no, en gris y con el motivo (la habilidad, la competencia o
-    lo que te falta); y lo que se aprende solo con más habilidad, con candado y qué hace falta. Por categorías y
-    con buscador.
-  - **Construir:** lo mismo con las construcciones. Al elegir una se abre el menú del juego para escoger dónde.
-  - **Salud**, **Personaje** (atributos, habilidades, competencias) y **Mapa** (abre el mapa del mundo).
-- **Clic en una casilla del mapa:** un menú con lo que hay ahí y solo las acciones que tienen sentido: en una
-  puerta, abrir o cerrar; con cosas en el suelo, coger; en el agua, beber o llenar, y pescar si se puede;
-  en un mueble que se puede examinar, examinar; en un NPC, hablar o atacar; en un monstruo, atacar; en un
-  sitio por el que se pasa, ir. Con un menú del juego abierto, el clic es del juego.
-- La barra lateral y el registro de mensajes del juego no se pintan.
+- **Inicio y muerte**: nuestra pantalla, con partida nueva (nombre y sexo), cargar (los mundos y sus
+  partidas) y el idioma. Al morir, el resumen (quién, cuánto sobrevivió, lo último que pasó) y lo mismo.
+- **HUD** (arriba a la izquierda, plegable): hora y día; tiempo y temperatura; las necesidades con icono,
+  texto y barra; una figura del cuerpo coloreada por la salud de cada parte; y lo que llevas en la mano, con
+  su dibujo.
+- **Barra de actividad**: al fabricar, construir, leer, dormir..., lo que haces, cuánto lleva y «Cancelar».
+- **Avisos breves** arriba, para lo malo o importante.
+- **Panel** (el botón redondo, Tab, o las teclas de siempre: i, &, *, m, @), con pestañas:
+  - **Inventario:** un muñeco con lo que llevas puesto en cada parte y, al lado, cada bolsa con lo que hay
+    dentro, todo con los dibujos del tileset. Al pulsar una cosa, su ficha con lo que se puede hacer con ella.
+  - **Fabricar:** por categorías y con buscador; cada receta con su dibujo; el detalle con componentes y
+    herramientas (con cuántos tienes de cuántos hacen falta), tiempo, habilidad y lo que sale. El botón solo
+    si se puede; si no, el motivo. Las prácticas, en su categoría.
+  - **Construir:** lo mismo; al elegir una, una rejilla de 3×3 alrededor con las casillas donde se puede, y
+    se construye al pulsar una (sin el menú del juego).
+  - **Salud**, **Personaje**, **Mapa** (el mapa del mundo con los dibujos de su tileset, Larwick Overmap:
+    zoom, arrastrar y el nombre de cada sitio al pasar) y **Mensajes** (con filtros, y los repetidos juntos
+    con «×N»).
+- **Clic en una casilla del mapa:** lo que hay y solo lo que tiene sentido: abrir o cerrar, coger (nuestra
+  ventana con casillas para elegir), beber o llenar, pescar, examinar, hablar, robar (nuestra ventana, con lo
+  que lleva el NPC), atacar, ir (anda todo el camino) y mirar (una ficha con la descripción).
+- **Hablar:** nuestra ventana de diálogo abajo; el mundo sigue mientras hablas.
+- **Las listas y preguntas del juego** («¿qué haces con lo que empuñas?», «¿seguro?»...): ya no las pinta
+  el juego; salen en nuestra ventana, con sus teclas de siempre o con el ratón (como el menú nativo de
+  Android). Mientras una está abierta, el juego espera la respuesta: es lo único que sigue siendo modal.
+- **Opciones** (arriba a la derecha o Escape): idioma (español o inglés, el juego entero y la página),
+  pantalla completa, guardar, y guardar y salir. La tuerca de play-cdda ya no está.
+- **Idioma:** uno solo para todo, español (la traducción del propio juego, `lang/mo/es_ES`) o inglés.
+- La barra lateral, el registro de mensajes y las ventanitas de progreso del juego no se pintan.
 - En el móvil, el HUD se estrecha y el panel ocupa la pantalla.
 
-## El enchufe (src/interfaz.h)
+## El enchufe (src/interfaz.h, src/interfaz_menus.cpp)
 
-**Hacia fuera** (JSON, en la web `cdda_ui_*`): `estado` (lo del HUD), `mensajes(n)`, `inventario`, `recetas`,
-`construcciones`, `personaje`, `casilla(dx, dy)` (lo que hay y sus acciones) y `casilla_en_pixel(x, y)` (qué
-casilla hay bajo un píxel del canvas, con la misma cuenta que usa el juego para el ratón).
+**Hacia fuera** (JSON, en la web `cdda_ui_*`): `estado`, `mensajes(n)`, `inventario`, `equipo` (el muñeco y
+las bolsas), `recetas`, `receta(id)`, `construcciones`, `personaje`, `casilla(dx, dy)`, `casilla_en_pixel`,
+`suelo(dx, dy)`, `robo(dx, dy)`, `dialogo`, `mapa(radio)`, `atlas` (las imágenes del tileset y las del mapa)
+e `iconos([...])` (qué sprite tiene cada cosa), `lista` (la lista o pregunta del juego abierta), `partidas`,
+`muerte`, `idioma`.
 
-**Hacia dentro**, órdenes en JSON. Se guardan y se hacen en el hilo del juego al empezar el siguiente tic (o
-mientras espera tu tecla, que en pausa no pasa ninguno), nunca a mitad de un menú. La página escribe la orden en
-un búfer (`cdda_ui_bufer`) y llama a `cdda_ui_orden` con su longitud.
+**Hacia dentro**, órdenes en JSON (búfer `cdda_ui_bufer` y `cdda_ui_orden(n)`), que se hacen en el hilo del
+juego al empezar el siguiente tic o mientras espera:
 
 | Orden | Qué hace |
 |---|---|
-| `{"a":"ir","dx":3,"dy":-1}` | andar hasta esa casilla (por el camino que encuentre) |
-| `{"a":"abrir"/"cerrar","dx":1,"dy":0}` | abrir o cerrar la puerta (o lo que sea) |
-| `{"a":"coger","dx":..}` | coger lo que hay (el menú de coger del juego) |
-| `{"a":"examinar"/"beber"/"pescar"/"vehiculo","dx":..}` | lo de examinar del mueble o del terreno |
-| `{"a":"hablar"/"atacar","dx":..}` | hablar con el NPC; atacar (si está lejos, ir a su lado) |
-| `{"a":"mirar"}` | mirar alrededor |
-| `{"a":"objeto","id":"...","que":"comer"}` | comer, ponerse, quitarse, empuñar, leer, usar o soltar algo del inventario |
-| `{"a":"fabricar","receta":"...","cantidad":1}` | fabricar |
-| `{"a":"construir"}`, `{"a":"mapa"}` | el menú de construir; el mapa del mundo |
-| `{"a":"velocidad","v":2}` | pausa (0) o la duración del día (1, 2, 3) |
+| `{"a":"mantener","dx":1,"dy":0}` | la dirección mantenida (flechas): anda seguido, y gira a mitad de paso |
+| `{"a":"ir","dx":3,"dy":-1}` | andar hasta esa casilla |
+| `{"a":"abrir"/"cerrar"/"examinar"/"beber"/"pescar","dx":..}` | lo de esa casilla |
+| `{"a":"coger_objetos","dx":..,"objetos":[{"indice":0,"cantidad":0}]}` | coger lo elegido del suelo |
+| `{"a":"hablar"/"responder"/"cerrar_dialogo"}`, `{"a":"robar","dx":..,"id":..}` | diálogo y robo |
+| `{"a":"objeto","id":"...","que":"comer"}` | comer, ponerse, quitarse, empuñar, leer, usar o soltar |
+| `{"a":"fabricar","receta":"..."}`, `{"a":"construir","grupo":..,"dx":..,"dy":..}` | fabricar y construir |
+| `{"a":"cancelar_actividad"}`, `{"a":"guardar"}`, `{"a":"salir"}`, `{"a":"idioma","v":"es"}` | lo demás |
+
+Las listas se contestan con `cdda_ui_elegir(i)` (-1, cancelar).
+
+## Compilar (apartado G)
+
+- Solo interfaz: `bash temp/web_interfaz.sh [prueba|buena]` (copia; basta con recargar).
+- Todo: `bash temp/web_todo.sh [prueba|medir|buena]`: los .o en Windows (`temp/objetos_win.sh`, emsdk-win),
+  el enlace en Windows (prueba: -O0, 4 s; medir y buena: -Os), y el paquete de datos solo si cambian data/,
+  gfx/ o lang/mo. `prueba` y `medir` van al 8096 (repos/cdda-web-prueba); `buena`, al 8095 del humano.
 
 ## Pruebas
 
-- `./tests/cata_test.exe "[interfaz]"`: el estado es JSON con lo del HUD; el inventario y una orden sobre un
-  objeto; las acciones de una casilla (una puerta cerrada se abre; una piedra se coge) y abrir una puerta con
-  una orden; recetas, personaje, mensajes y construcciones.
-- `node tools/tiempo-real/prueba-interfaz.mjs` (rama web, Playwright): el HUD y los mensajes, el menú de una
-  casilla, hablar con un NPC y salir sin que se cuelgue, las seis pestañas con el juego en pausa, 100 zombis
-  alrededor y el móvil, con fotos de cada paso.
+- `./tests/cata_test.exe "[interfaz]"`: el estado, el inventario y las órdenes sobre objetos, las acciones de
+  una casilla, recetas, personaje, mensajes, construcciones, equipo, receta, suelo y el diálogo.
+- `node tools/tiempo-real/prueba-jugar.mjs [--movil]` (rama web, Playwright): juega como una persona con
+  fotos de cada paso: crea un personaje, anda (empieza al pulsar, 60 imágenes por segundo, gira a mitad de
+  paso, ir con un clic sin pararse), inventario, soltar y coger, fabricar, las pestañas, hablar, idioma,
+  guardar y salir, cargar y morir; contesta las preguntas del juego como lo haría una persona.
+- `node tools/tiempo-real/prueba-interfaz.mjs` y `prueba-web.mjs`: el HUD, el menú de una casilla, hablar,
+  las pestañas sin parar el mundo, 100 zombis a 24 tics por segundo y el móvil.

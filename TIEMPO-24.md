@@ -93,23 +93,20 @@ en las dudas se ha hecho como allí.
 - **¿Conducir?** Real: el coche va a su velocidad de verdad. Lo que se gasta por kilómetro, igual.
 - **¿Dormir?** Mundo: una noche dura 8 horas de juego, 20 minutos reales.
 
-## Velocidades
+## Velocidad: una sola, fija (Encargo 8)
 
-Lo que elige el jugador es **cuánto dura un día**, o la pausa, y nada más. Andar y pelear van siempre a paso
-real: los puntos de movimiento se reparten entre los tics de un segundo real, sean los que sean.
+El tiempo va **siempre** a 24 tics por segundo: un día de juego dura una hora real. No hay pausa ni se elige
+la duración del día (ni F6/F7/F8 ni opción). Andar y pelear van a paso real: los puntos de movimiento del
+jugador se reparten entre los tics de un segundo; NPC y monstruos reciben su velocidad entera una vez por
+segundo, cada uno en su tic.
 
-| Velocidad | Tics por segundo | Un día de juego dura | Andar |
-|---|---|---|---|
-| Pausa | 0 | — | — |
-| Día lento | 12 | 2 horas | a paso real |
-| **Día normal** (por defecto) | 24 | 1 hora | a paso real |
-| Día rápido | 48 | 30 minutos | a paso real |
+**Nada para el mundo**: con la interfaz web, el inventario, fabricar, construir, el mapa, hablar con un NPC,
+las opciones... son ventanas de la página y el reloj sigue. Lo único que espera respuesta son las preguntas
+cortas del juego (sus listas y «¿seguro?»), que salen en nuestra ventana.
 
 Para probar, el modo simulación (sin ventana, src/simulacion.h) puede ir a la máxima, lo más rápido que pueda
 el ordenador, para jugar partidas enteras en minutos y cazar fallos. Es una herramienta de pruebas, no una
 opción del juego.
-
-Los menús siguen parando el reloj.
 
 ## Fuego, humo y gases
 
