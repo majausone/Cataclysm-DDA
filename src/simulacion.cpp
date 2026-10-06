@@ -2,6 +2,7 @@
 
 #if defined(TILES) && !defined(__EMSCRIPTEN__)
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -35,16 +36,18 @@ std::atomic<int64_t> turnos{ 0 };
 std::atomic<bool> muerto{ false };
 std::atomic<int> ventanas{ 0 };
 std::atomic<int> foto_pedida{ 0 };     // una foto de la pantalla (la hace el juego en su siguiente latido): su número
-std::mutex cerrojo;
-std::string estado;                 // el último estado (lo escribe el juego, lo lee el vigilante)
-std::string imgui_activas;          // las ventanas de ImGui abiertas (lo mismo)
-std::deque<std::string> ultimas;    // las últimas teclas, para el informe
-std::string fichero;
-std::string modo = "piloto";
+// (lo que comparten el juego y el vigilante no se destruye nunca: si el juego sale por su cuenta, el vigilante sigue
+// un momento y no puede encontrárselo destruido)
+std::mutex &cerrojo = *new std::mutex;
+std::string &estado = *new std::string;                 // el último estado (lo escribe el juego, lo lee el vigilante)
+std::string &imgui_activas = *new std::string;          // las ventanas de ImGui abiertas (lo mismo)
+std::deque<std::string> &ultimas = *new std::deque<std::string>; // las últimas teclas, para el informe
+std::string &fichero = *new std::string;
+std::string &modo = *new std::string( "piloto" );
 
 void escribir( const std::string &linea )
 {
-    static std::mutex m;
+    static std::mutex &m = *new std::mutex;
     std::lock_guard<std::mutex> g( m );
     std::ofstream( fichero, std::ios::app ) << linea << "\n";
 }
@@ -54,31 +57,63 @@ double segundos_desde( reloj_t::time_point t0 )
     return std::chrono::duration<double>( reloj_t::now() - t0 ).count();
 }
 
-// una tecla en la cola de SDL (SDL_PushEvent vale desde otro hilo). Las de texto, como texto (así las lee el juego en
-// los menús y en el mapa); las demás, como tecla
+// una tecla en la cola de SDL (SDL_PushEvent vale desde otro hilo), como la manda un teclado de verdad: la tecla y,
+// si es de texto, también el texto (el mapa y los menús de siempre leen el texto; las ventanas de ImGui, la tecla)
+// la ventana del juego (los eventos sin ella los descarta ImGui)
+SDL_WindowID ventana_juego()
+{
+    int n = 0;
+    SDL_Window **v = SDL_GetWindows( &n );
+    const SDL_WindowID id = v != nullptr && n > 0 ? SDL_GetWindowID( v[0] ) : 0;
+    SDL_free( v );
+    return id;
+}
+
 void tecla( SDL_Keycode k, SDL_Scancode sc, const char *texto )
 {
+    SDL_Keymod mod = SDL_KMOD_NONE;
+    const SDL_WindowID vj = ventana_juego();
+    if( texto != nullptr && texto[0] != '\0' && texto[1] == '\0' ) {
+        const char c = texto[0];
+        if( c >= 'A' && c <= 'Z' ) {
+            k = static_cast<SDL_Keycode>( c - 'A' + 'a' );
+            mod = SDL_KMOD_LSHIFT;
+        } else if( ( c >= 'a' && c <= 'z' ) || ( c >= '0' && c <= '9' ) || c == '.' || c == ' ' ) {
+            k = static_cast<SDL_Keycode>( c );
+        }
+        if( k != SDLK_UNKNOWN ) {
+            sc = SDL_GetScancodeFromKey( k, nullptr );
+        }
+    }
+    SDL_Event e;
+    SDL_zero( e );
+    if( k != SDLK_UNKNOWN ) {
+        e.type = SDL_EVENT_KEY_DOWN;
+        e.key.windowID = vj;
+        e.key.key = k;
+        e.key.scancode = sc;
+        e.key.mod = mod;
+        e.key.down = true;
+        SDL_PushEvent( &e );
+    }
     if( texto != nullptr ) {
         SDL_Event t;
         SDL_zero( t );
         t.type = SDL_EVENT_TEXT_INPUT;
+        t.text.windowID = vj;
         t.text.text = texto;
         SDL_PushEvent( &t );
-        return;
     }
-    SDL_Event e;
-    SDL_zero( e );
-    e.type = SDL_EVENT_KEY_DOWN;
-    e.key.key = k;
-    e.key.scancode = sc;
-    e.key.down = true;
-    SDL_PushEvent( &e );
-    SDL_Event u;
-    SDL_zero( u );
-    u.type = SDL_EVENT_KEY_UP;
-    u.key.key = k;
-    u.key.scancode = sc;
-    SDL_PushEvent( &u );
+    if( k != SDLK_UNKNOWN ) {
+        SDL_Event u;
+        SDL_zero( u );
+        u.type = SDL_EVENT_KEY_UP;
+        u.key.windowID = vj;
+        u.key.key = k;
+        u.key.scancode = sc;
+        u.key.mod = mod;
+        SDL_PushEvent( &u );
+    }
 }
 
 struct tecla_t {
@@ -168,7 +203,6 @@ void jugar()
         }
         std::this_thread::sleep_for( std::chrono::seconds( 5 ) );
         if( turnos.load() == 0 ) {
-            tecla( SDLK_D, SDL_SCANCODE_D, nullptr );
             tecla( SDLK_UNKNOWN, SDL_SCANCODE_UNKNOWN, "d" );
         }
     }
@@ -221,19 +255,30 @@ void jugar()
             if( escapes >= 10 ) {
                 foto_pedida = 2;
                 std::this_thread::sleep_for( std::chrono::seconds( 2 ) );
-                escribir( "ATASCO el turno no avanza ni con 10 Escape: " + informe() );
+                escribir( "ATASCO el turno no avanza ni con 10 intentos (Escape, a/b y Enter, y, espacio): " + informe() );
                 std::_Exit( 4 );
             }
             if( escapes == 0 ) {
                 // (una foto de cómo está antes de los Escape)
                 foto_pedida = 1;
             }
+            // (Escape, y si no, contestar como en un diálogo obligatorio: a o b y Enter, «y» si pregunta si seguir, o espacio)
+            static const std::array<const char *, 10> salidas = { { "Escape", "Escape", "a", "Enter", "y", "b", "Enter", "y", "espacio", "Escape" } };
+            const std::string s = salidas[escapes];
             escapes++;
-            apuntar_tecla( "Escape (no avanza)" );
-            tecla( SDLK_ESCAPE, SDL_SCANCODE_ESCAPE, nullptr );
+            apuntar_tecla( s + " (no avanza)" );
+            if( s == "Escape" ) {
+                tecla( SDLK_ESCAPE, SDL_SCANCODE_ESCAPE, nullptr );
+            } else if( s == "Enter" ) {
+                tecla( SDLK_RETURN, SDL_SCANCODE_RETURN, nullptr );
+            } else if( s == "espacio" ) {
+                tecla( SDLK_UNKNOWN, SDL_SCANCODE_UNKNOWN, " " );
+            } else {
+                tecla( SDLK_UNKNOWN, SDL_SCANCODE_UNKNOWN, salidas[escapes - 1] );
+            }
         }
-        // el mono: una tecla cada 150 ms
-        if( modo == "mono" && segundos_desde( t_tecla ) > 0.15 ) {
+        // el mono: una tecla cada 150 ms (callado mientras se intenta salir de un atasco)
+        if( modo == "mono" && escapes == 0 && segundos_desde( t_tecla ) > 0.15 ) {
             t_tecla = reloj_t::now();
             const tecla_t &t = teclas()[elegir( azar )];
             apuntar_tecla( t.nombre );
@@ -277,6 +322,11 @@ void latido()
 {
     if( en_marcha() ) {
         const int64_t n = latidos.fetch_add( 1, std::memory_order_relaxed );
+        // (muerto: el juego lo marca al morir, y lo que viene después, la puntuación y el menú principal, no son
+        // atascos)
+        if( g != nullptr && g->uquit == QUIT_DIED ) {
+            muerto = true;
+        }
         // (la foto pedida: fichero-1.png antes de los Escape, fichero-2.png al dar el atasco por bueno)
         if( const int f = foto_pedida.exchange( 0 ) ) {
             const std::string ruta = fichero + "-" + std::to_string( f ) + ".png";
@@ -301,7 +351,17 @@ void aviso( const std::string &texto )
 {
     if( en_marcha() ) {
         escribir( "AVISO turno " + std::to_string( turnos.load() ) + " " + texto );
+        // (el aviso se queda en pantalla hasta la barra espaciadora: se pulsa, para seguir buscando)
+        tecla( SDLK_SPACE, SDL_SCANCODE_SPACE, " " );
     }
+}
+
+// el juego sale por su cuenta (lo normal: ha muerto y desde el menú principal el mono ha salido): se apunta y se sale
+// ya, sin los destructores del final
+[[noreturn]] static void al_salir()
+{
+    escribir( "SALE el juego por su cuenta: " + informe() );
+    std::_Exit( 0 );
 }
 
 void turno()
@@ -309,6 +369,9 @@ void turno()
     if( !en_marcha() ) {
         return;
     }
+    // (al salir, lo primero; se registra aquí, tarde, para que vaya antes que lo demás del final)
+    static const bool registrado = std::atexit( al_salir ) == 0;
+    static_cast<void>( registrado );
     latido();
     turnos.fetch_add( 1, std::memory_order_relaxed );
     // siempre a la máxima (el peligro la baja a x1)
