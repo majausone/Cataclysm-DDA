@@ -1,5 +1,7 @@
 #include "do_turn.h"
+#include "piloto.h"
 #include "realtime.h"
+#include "simulacion.h"
 
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
@@ -532,6 +534,9 @@ bool game::do_turn()
 
     // tiempo real: el turno empieza cuando le toca (lee el teclado mientras espera)
     realtime::esperar_turno();
+    // piloto automático: encenderlo o apagarlo si se ha pedido, y el observador detrás del personaje
+    piloto::turno();
+    simulacion::turno();
 
     weather_manager &weather = get_weather();
 
