@@ -447,7 +447,8 @@ ifeq ($(RELEASE), 1)
       OPTLEVEL = -O3
     endif
   else ifeq ($(NATIVE), emscripten)
-    OPTLEVEL = -Os
+    # (EMSCRIPTEN_OPTLEVEL=-O2 para que vaya más rápido a costa de algo más de tamaño)
+    OPTLEVEL = $(or $(EMSCRIPTEN_OPTLEVEL),-Os)
   else
     # MXE ICE Workaround
     # known bad on 4.9.3 and 4.9.4, if it gets fixed this could include a version test too

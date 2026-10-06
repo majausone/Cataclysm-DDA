@@ -64,7 +64,11 @@ for (const [nombre, v, seg] of [['x1', VEL.x1, 10], ['x3', VEL.x3, 8], ['x10', V
   r.velocidades[nombre] = { turnosPorSegundo: +tps.toFixed(1), msPorTurno: +z.msTurno.toFixed(2), retrasado: !!z.retrasado, hora: z.hora };
   // (a las de verdad, lo pedido con un 10 % de margen; si no llega, que lo diga en pantalla: retrasado)
   if (pedido) comprobar(`a ${nombre} pasan ${pedido} turnos por segundo (o dice que no llega)`, Math.abs(tps - pedido) <= pedido * 0.1 + 0.3 || (tps < pedido && z.retrasado), r.velocidades[nombre]);
-  else comprobar('a la máxima va todo lo rápido que puede', tps > 72, r.velocidades[nombre]);
+  else {
+    // (a la máxima, lo más rápido que puede: como la más rápida de las otras, que ya iban al tope, o más)
+    const tope = Math.max(...Object.entries(r.velocidades).filter(([k]) => k !== 'max').map(([, x]) => x.turnosPorSegundo));
+    comprobar('a la máxima va todo lo rápido que puede', tps >= tope * 0.9, { ...r.velocidades[nombre], topeDeLasOtras: tope });
+  }
   await foto(`2-velocidad-${nombre}`);
 }
 
@@ -96,13 +100,23 @@ const p2 = await estado();
 comprobar('en pausa (F8) no avanza', p1.turno === p0.turno && p0.vel === VEL.pausa, { turnos: p1.turno - p0.turno, vel: p0.vel });
 comprobar('y al quitar la pausa sigue a la velocidad de antes', p2.turno > p1.turno && p2.vel === VEL.x10, { turnos: p2.turno - p1.turno, vel: p2.vel });
 
-// 4. teclas mientras corre (andar por ahí): el reloj sigue
+// 4. teclas mientras corre (andar por ahí): el reloj sigue. Solo cuenta el tiempo sin ningún menú abierto (al
+// chocar con alguien o con un mueble el juego pregunta, y con la pregunta abierta el reloj se para, como debe)
 await poner(VEL.x1);
 await esperar(1000);
-const k0 = await estado(), tk = Date.now();
-for (const tecla of ['ArrowUp', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'ArrowRight', 'ArrowDown', 'ArrowLeft']) { await p.keyboard.press(tecla); await esperar(600); }
-const k1 = await estado(), sk = (Date.now() - tk) / 1000;
-comprobar('andando a x1, el reloj sigue a su paso', Math.abs((k1.turno - k0.turno) / sk - 1) < 0.35, { turnosPorSegundo: +((k1.turno - k0.turno) / sk).toFixed(2) });
+let turnosAndando = 0, segAndando = 0, pasos = 0, menus = 0;
+let prev = await estado(), tprev = Date.now();
+for (let i = 0; i < 24; i++) {
+  await p.keyboard.press(['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'][Math.floor(i / 3) % 4]);
+  pasos++;
+  await esperar(500);
+  const e = await estado(), t = Date.now();
+  if (e.ventanas <= 1 && prev.ventanas <= 1) { turnosAndando += e.turno - prev.turno; segAndando += (t - tprev) / 1000; }
+  if (e.ventanas > 1) { menus++; await p.keyboard.press('Escape'); await esperar(300); }
+  prev = await estado(); tprev = Date.now();
+}
+const tpsAndando = turnosAndando / Math.max(0.001, segAndando);
+comprobar('andando a x1, el reloj sigue a su paso', Math.abs(tpsAndando - 1) < 0.2, { turnosPorSegundo: +tpsAndando.toFixed(2), segundosSinMenus: +segAndando.toFixed(1), pasos, menusCerrados: menus });
 await foto('5-andando');
 
 // 5. una partida de unos minutos a x72, moviéndose de vez en cuando
