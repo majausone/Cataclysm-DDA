@@ -144,14 +144,20 @@ void reloj::empezar()
         return;
     }
     const std::chrono::nanoseconds periodo( 1000000000LL / m );
-    if( hay_plazo_ && ahora - plazo_ < periodo ) {
-        // a tiempo (o con menos de un turno de retraso): el siguiente, un periodo después del plazo de este
+    // (margen: lo que se puede ir tarde y aún recuperar, haciendo seguidos los turnos que tocaban. Un turno, o 50 ms si
+    // es más: en el navegador, cada vez que el juego cede el control (al repintar, al mirar el teclado) se le va al
+    // menos un fotograma, y a x72 (turnos de 14 ms) eso solo se recupera haciendo después los que tocaban, por
+    // fotogramas. Más allá no se recupera nada: sin deuda ni ráfagas largas)
+    const std::chrono::nanoseconds margen = std::max<std::chrono::nanoseconds>( periodo,
+                                            std::chrono::milliseconds( 50 ) );
+    if( hay_plazo_ && ahora - plazo_ < margen ) {
+        // a tiempo (o dentro del margen): el siguiente, un periodo después del plazo de este
         plazo_ += periodo;
         if( ++a_tiempo_ > m ) {
             retrasado = false;
         }
     } else {
-        // va tarde más de un turno (o es el primero): sin acumular retraso, desde ahora
+        // va tarde más que el margen (o es el primero): sin acumular retraso, desde ahora
         if( hay_plazo_ ) {
             retrasado = true;
             a_tiempo_ = 0;
