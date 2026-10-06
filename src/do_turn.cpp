@@ -494,7 +494,10 @@ void game::handle_progress_ui()
             wait_refresh_rate = 5_minutes;
         }
     }
-    if( wait_redraw ) {
+    // (con la interfaz web, el progreso lo enseña la página con su barra, sin tapar nada ni parar los menús)
+    if( wait_redraw && interfaz::activa() ) {
+        wait_popup_reset();
+    } else if( wait_redraw ) {
         if( first_redraw_since_waiting_started ||
             calendar::once_every( std::min( 1_minutes, wait_refresh_rate ) ) ) {
             if( first_redraw_since_waiting_started || calendar::once_every( wait_refresh_rate ) ) {

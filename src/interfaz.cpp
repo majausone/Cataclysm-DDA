@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <deque>
 #include <map>
+#include <cctype>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -40,6 +41,7 @@
 #include "options.h"
 #include "worldfactory.h"
 #include "output.h"
+#include "system_locale.h"
 #include "translations.h"
 #include "overmap_ui.h"
 #include "panels.h"
@@ -68,6 +70,7 @@
 #endif
 
 static const efftype_id effect_bleed( "bleed" );
+static const efftype_id effect_sleep( "sleep" );
 
 namespace interfaz
 {
@@ -196,7 +199,15 @@ std::string idioma()
         return "es";
     }
     const std::string l = get_option<std::string>( "USE_LANG" );
-    return l.rfind( "es", 0 ) == 0 ? "es" : "en";
+    if( l != "es_ES" && l != "en" ) {
+        // (sin elegir, el juego va en el idioma del sistema, que puede ser cualquiera: aquí solo español o inglés,
+        // y el mismo para el juego y la página. Español si el sistema lo está, si no inglés; y se guarda)
+        const std::string sistema = l.empty() ? SystemLocale::Language().value_or( "en" ) : l;
+        const std::string elegido = sistema.rfind( "es", 0 ) == 0 ? "es" : "en";
+        poner_idioma( elegido );
+        return elegido;
+    }
+    return l == "es_ES" ? "es" : "en";
 }
 
 namespace
@@ -329,9 +340,36 @@ std::string estado_json()
         j.member( "id", u.activity.id().str() );
         j.member( "nombre", remove_color_tags( u.activity.get_verb().translated() ) );
         const int total = u.activity.moves_total;
-        j.member( "progreso", total > 0 ? std::clamp( 1.0 - static_cast<double>( u.activity.moves_left ) / total, 0.0,
-                  1.0 ) : -1.0 );
+        double progreso = total > 0 ? std::clamp( 1.0 - static_cast<double>( u.activity.moves_left ) / total, 0.0,
+                          1.0 ) : -1.0;
+        // (lo que el juego enseñaba en su ventanita: «Fabricando: 23 %»...; de ahí el progreso si no hay otro)
+        const std::optional<std::string> texto = u.activity.get_progress_message( u );
+        if( texto ) {
+            j.member( "texto", remove_color_tags( *texto ) );
+            const size_t pc = texto->find( '%' );
+            if( progreso < 0 && pc != std::string::npos ) {
+                size_t i = pc;
+                while( i > 0 && ( std::isdigit( static_cast<unsigned char>( ( *texto )[i - 1] ) ) ||
+                                  ( *texto )[i - 1] == '.' || ( *texto )[i - 1] == ' ' ) ) {
+                    i--;
+                }
+                try {
+                    progreso = std::clamp( std::stod( texto->substr( i, pc - i ) ) / 100.0, 0.0, 1.0 );
+                } catch( const std::exception & ) {
+                    // (sin número)
+                }
+            }
+        }
+        j.member( "progreso", progreso );
         j.member( "cancelable", u.activity.is_interruptible() );
+        j.end_object();
+    } else if( u.has_effect( effect_sleep ) ) {
+        j.member( "actividad" );
+        j.start_object();
+        j.member( "id", "dormir" );
+        j.member( "nombre", _( "Sleeping" ) );
+        j.member( "progreso", -1.0 );
+        j.member( "cancelable", false );
         j.end_object();
     }
     j.member( "necesidades" );
