@@ -16,6 +16,8 @@
 #include <vector>
 
 #include <SDL3/SDL.h>
+#include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
 
 #include "avatar.h"
 #include "calendar.h"
@@ -33,6 +35,7 @@ std::atomic<bool> muerto{ false };
 std::atomic<int> ventanas{ 0 };
 std::mutex cerrojo;
 std::string estado;                 // el último estado (lo escribe el juego, lo lee el vigilante)
+std::string imgui_activas;          // las ventanas de ImGui abiertas (lo mismo)
 std::deque<std::string> ultimas;    // las últimas teclas, para el informe
 std::string fichero;
 std::string modo = "piloto";
@@ -141,7 +144,7 @@ std::string informe()
     for( const std::string &t : ultimas ) {
         l << " [" << t << "]";
     }
-    l << "; estado: " << estado;
+    l << "; ImGui: [" << imgui_activas << "]; estado: " << estado;
     return l.str();
 }
 
@@ -181,7 +184,14 @@ void jugar()
     auto t_estado = reloj_t::now();
     auto t_tecla = reloj_t::now();
     int escapes = 0;
+    const bool con_npc = std::getenv( "CDDA_SIM_NPC" ) != nullptr;
+    auto t_npc = reloj_t::now() - std::chrono::seconds( 25 );
     while( segundos_desde( t0 ) < duracion ) {
+        if( con_npc && segundos_desde( t_npc ) > 30 ) {
+            t_npc = reloj_t::now();
+            escribir( "NPC al lado, turno " + std::to_string( turnos.load() ) );
+            piloto::pedir_npc_al_lado();
+        }
         std::this_thread::sleep_for( std::chrono::milliseconds( 50 ) );
         const int64_t l = latidos.load();
         const int64_t tu = turnos.load();
@@ -258,8 +268,19 @@ namespace simulacion
 void latido()
 {
     if( en_marcha() ) {
-        latidos.fetch_add( 1, std::memory_order_relaxed );
+        const int64_t n = latidos.fetch_add( 1, std::memory_order_relaxed );
         ventanas.store( static_cast<int>( ui_adaptor::ui_stack_size() ), std::memory_order_relaxed );
+        // (cada 20 latidos: qué ventanas de ImGui hay abiertas, para el informe de un atasco)
+        if( n % 20 == 0 && ImGui::GetCurrentContext() != nullptr ) {
+            std::string v;
+            for( const ImGuiWindow *w : ImGui::GetCurrentContext()->Windows ) {
+                if( w->WasActive && !w->Hidden ) {
+                    v += ( v.empty() ? "" : ", " ) + std::string( w->Name );
+                }
+            }
+            std::lock_guard<std::mutex> g( cerrojo );
+            imgui_activas = v;
+        }
     }
 }
 

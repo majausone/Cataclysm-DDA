@@ -30,6 +30,9 @@ void pedir( bool encender );
 void turno();
 // por qué se apagó solo la última vez ("" si no se ha apagado solo)
 std::string motivo_apagado();
+// para las pruebas y la simulación: un superviviente neutral al lado del jugador, para hablar con él. Se pide (desde la
+// página o desde otro hilo) y se hace al empezar el siguiente turno
+void pedir_npc_al_lado();
 
 // lo que ha decidido la IA de un NPC en este turno (npc::move)
 void apuntar( const npc &quien, const std::string &accion, const std::string &categoria,
