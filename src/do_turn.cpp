@@ -1,5 +1,6 @@
 #include "do_turn.h"
 #include "piloto.h"
+#include "interfaz.h"
 #include "realtime.h"
 #include "simulacion.h"
 
@@ -537,6 +538,8 @@ bool game::do_turn()
     // piloto automático: encenderlo o apagarlo si se ha pedido, y el observador detrás del personaje
     piloto::turno();
     simulacion::turno();
+    // las órdenes de la interfaz web (abrir, comer, fabricar...), en el hilo del juego y al empezar el tic
+    interfaz::turno();
 
     weather_manager &weather = get_weather();
 

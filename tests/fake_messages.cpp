@@ -32,6 +32,10 @@ std::vector<std::pair<std::string, std::string>> Messages::recent_messages( size
 {
     return messages;
 }
+std::vector<Messages::mensaje_tipado> Messages::recent_messages_typed( size_t )
+{
+    return {};
+}
 bool Messages::has_debug_filter( debugmode::debug_filter )
 {
     return true;

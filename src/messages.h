@@ -3,6 +3,7 @@
 #define CATA_SRC_MESSAGES_H
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -26,6 +27,14 @@ namespace Messages
 {
 
 std::vector<std::pair<std::string, std::string>> recent_messages( size_t count );
+// (interfaz web) los últimos mensajes con su tipo (game_message_type) y el turno en que salieron
+struct mensaje_tipado {
+    std::string hora;
+    std::string texto;
+    int tipo = 0;
+    int64_t turno = 0;
+};
+std::vector<mensaje_tipado> recent_messages_typed( size_t count );
 bool has_debug_filter( debugmode::debug_filter type );
 void add_msg( std::string msg );
 void add_msg( const game_message_params &params, std::string msg );

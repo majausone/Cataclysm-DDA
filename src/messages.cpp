@@ -359,6 +359,21 @@ class messages_impl
             }
         }
 
+        std::vector<Messages::mensaje_tipado> recent_typed( size_t count ) const {
+            count = std::min( count, messages.size() );
+            std::vector<Messages::mensaje_tipado> result;
+            result.reserve( count );
+            for( auto it = messages.end() - static_cast<std::ptrdiff_t>( count ); it != messages.end(); ++it ) {
+                Messages::mensaje_tipado m;
+                m.hora = to_string_time_of_day( it->timestamp_in_turns );
+                m.texto = it->get_with_count();
+                m.tipo = static_cast<int>( it->type );
+                m.turno = to_turn<int64_t>( it->timestamp_in_turns );
+                result.push_back( std::move( m ) );
+            }
+            return result;
+        }
+
         std::vector<std::pair<std::string, std::string>> recent_messages( size_t count ) const {
             count = std::min( count, messages.size() );
 
@@ -434,6 +449,11 @@ bool message_exceeds_ttl( const game_message &message )
 std::vector<std::pair<std::string, std::string>> Messages::recent_messages( const size_t count )
 {
     return player_messages.recent_messages( count );
+}
+
+std::vector<Messages::mensaje_tipado> Messages::recent_messages_typed( const size_t count )
+{
+    return player_messages.recent_typed( count );
 }
 
 bool Messages::has_debug_filter( debugmode::debug_filter type )
