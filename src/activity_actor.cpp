@@ -6148,7 +6148,9 @@ void consume_activity_actor::finish( player_activity &act, Character & )
         } else if( !consume_item.is_null() ) {
             player_character.consume( consume_item, /*force=*/true );
         } else {
-            debugmsg( "Item location/name to be consumed should not be null." );
+            // (lo que se iba a comer ya no está: mientras se comía, alguien lo ha cogido o se ha movido; con el tiempo
+            // real el mundo sigue mientras comes. No es un error del juego: se dice y ya)
+            player_character.add_msg_if_player( m_info, _( "What you were going to consume is gone." ) );
         }
     }
 
