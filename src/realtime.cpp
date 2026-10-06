@@ -268,6 +268,8 @@ std::chrono::steady_clock::time_point inicio_espera_jugador;
 bool esperando_jugador = false;
 // (el juego está parado esperando el siguiente tic, en esperar_turno: un sitio seguro para repintar desde fuera)
 bool en_espera_de_tic = false;
+// (esperando una tecla en lo más bajo, en la web: donde de verdad se cede el control al navegador)
+bool en_espera_de_entrada = false;
 bool velocidad_de_opciones = false;
 
 // ¿le toca al jugador decidir en este turno?  (si no, el turno pasa solo: actividad, sueño, moviéndose...)
@@ -539,6 +541,11 @@ void mantener_direccion( int dx, int dy )
     dir_y = std::clamp( dy, -1, 1 );
 }
 
+void espera_de_entrada( bool si )
+{
+    en_espera_de_entrada = si;
+}
+
 int pintar_si_toca()
 {
     // (solo parado en una espera, la del tic o la de la tecla del jugador, nunca a mitad de un tic ni de un menú)
@@ -546,7 +553,7 @@ int pintar_si_toca()
     if( !activo() || test_mode ) {
         return 0;
     }
-    if( !en_espera_de_tic && !esperando_jugador ) {
+    if( !en_espera_de_tic && !esperando_jugador && !en_espera_de_entrada ) {
         return 2;
     }
     if( !suave::hay_movimiento() ) {

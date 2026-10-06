@@ -63,6 +63,7 @@
 #include "options.h"
 #include "output.h"
 #include "overmap.h"
+#include "realtime.h"
 #include "overmap_ui.h"
 #include "overmapbuffer.h"
 #include "path_info.h"
@@ -6775,6 +6776,8 @@ input_event input_manager::get_input_event( const keyboard_mode preferred_keyboa
 
 #if defined(__EMSCRIPTEN__)
     // emscripten must yield to the browser through Asyncify, which SDL_Delay does
+    // (tiempo real: mientras espera aquí, la página puede repintar el movimiento suave: realtime::pintar_si_toca)
+    realtime::espera_de_entrada( true );
     if( inputdelay < 0 ) {
         do {
             CheckMessages();
@@ -6802,6 +6805,7 @@ input_event input_manager::get_input_event( const keyboard_mode preferred_keyboa
     } else {
         CheckMessages();
     }
+    realtime::espera_de_entrada( false );
 #else
     if( inputdelay < 0 ) {
         CheckMessages();
