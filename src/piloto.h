@@ -36,6 +36,8 @@ void pedir_npc_al_lado();
 // para medir en una zona cargada: n zombis repartidos alrededor del jugador (hasta 30 casillas), al empezar el tic;
 // el jugador se vuelve intocable (DEBUG_NODMG) para que dé tiempo a medir
 void pedir_carga( int n );
+// solo para las pruebas: morir al empezar el tic (para probar la pantalla de muerte y cargar partida)
+void pedir_muerte();
 
 // lo que ha decidido la IA de un NPC en este turno (npc::move)
 void apuntar( const npc &quien, const std::string &accion, const std::string &categoria,
