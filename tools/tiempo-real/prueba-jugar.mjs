@@ -60,33 +60,51 @@ await intentar('crear personaje', async () => {
 // 2. andar (manteniendo flechas): se mueve al pulsar, a 60 imágenes por segundo, y gira a mitad de paso
 const imagenes = () => p.evaluate(() => wasmExports.cdda_imagenes ? wasmExports.cdda_imagenes() : 0);
 const lado = (q) => Math.max(Math.abs(q[0]), Math.abs(q[1]));
+// (por dónde: una dirección con tres casillas libres, que el sitio de salida cambia en cada partida)
+const DIRS = [['ArrowRight', 1, 0], ['ArrowDown', 0, 1], ['ArrowLeft', -1, 0], ['ArrowUp', 0, -1]];
+const libre = (dx, dy) => p.evaluate(([dx, dy]) => { const c = window.interfazCdda.json('cdda_ui_casilla', dx, dy); return !!(c && c.acciones.some((a) => a.id === 'ir')); }, [dx, dy]);
+async function direccionLibre(n, excepto = null) {
+  for (const d of DIRS) {
+    if (excepto && (d[1] === excepto[1] || d[2] === excepto[2])) continue;
+    let ok = true;
+    for (let k = 1; k <= n && ok; k++) ok = await libre(d[1] * k, d[2] * k);
+    if (ok) return d;
+  }
+  return null;
+}
 await intentar('andar', async () => {
+  const d = await direccionLibre(3);
+  if (!d) { comprobar('hay por dónde andar 3 casillas', false); return; }
+  const [tecla, ddx, ddy] = d;
   const a = await estado(), i0 = await imagenes(), t0 = Date.now();
-  await p.keyboard.down('ArrowRight');
+  await p.keyboard.down(tecla);
   await esperar(150);
   const tras = await estado();
   comprobar('al pulsar, el paso empieza enseguida (antes de 150 ms)', tras.pos[0] !== a.pos[0] || tras.pos[1] !== a.pos[1], { antes: a.pos, despues: tras.pos });
   await esperar(2350);
   const fps = ((await imagenes()) - i0) / ((Date.now() - t0) / 1000);
   await foto('andando');
-  await p.keyboard.up('ArrowRight');
+  await p.keyboard.up(tecla);
   const z = await estado();
-  comprobar('manteniendo la flecha anda seguido (2-3 casillas en 2,5 s)', z.pos[0] - a.pos[0] >= 2, { casillas: z.pos[0] - a.pos[0] });
+  const casillas = (z.pos[0] - a.pos[0]) * ddx + (z.pos[1] - a.pos[1]) * ddy;
+  comprobar('manteniendo la flecha anda seguido (2-3 casillas en 2,5 s)', casillas >= 2, { casillas, tecla });
   const msImagen = await p.evaluate(() => wasmExports.cdda_rt_ms_imagen ? wasmExports.cdda_rt_ms_imagen() : -1);
   const raf = await p.evaluate(() => new Promise((ok) => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 1000) requestAnimationFrame(f); else ok(n); }; requestAnimationFrame(f); }));
   comprobar('andando se pinta a unas 60 imágenes por segundo', fps >= 50, { imagenesPorSegundo: +fps.toFixed(1), msPorImagen: +msImagen.toFixed(1), fotogramasDelNavegador: raf });
   comprobar('el tiempo sigue andando', z.turno > a.turno, { turnos: z.turno - a.turno });
-  // girar a mitad de paso: derecha y, enseguida, abajo; se ve abajo al momento (no al acabar el paso)
+  // girar a mitad de paso: una dirección y, enseguida, otra perpendicular; se ve la nueva al momento
   await esperar(1500);
+  const d1 = await direccionLibre(1), d2 = d1 && await direccionLibre(1, d1);
+  if (!d1 || !d2) { comprobar('hay sitio para girar', false); return; }
   const g0 = await estado();
-  await p.keyboard.down('ArrowRight'); await esperar(120);
+  await p.keyboard.down(d1[0]); await esperar(120);
   const g1 = await estado();
-  await p.keyboard.up('ArrowRight'); await p.keyboard.down('ArrowDown'); await esperar(250);
+  await p.keyboard.up(d1[0]); await p.keyboard.down(d2[0]); await esperar(250);
   const g2 = await estado();
-  await p.keyboard.up('ArrowDown');
+  await p.keyboard.up(d2[0]);
   await foto('girando');
-  const d1 = [g1.pos[0] - g0.pos[0], g1.pos[1] - g0.pos[1]], d2 = [g2.pos[0] - g0.pos[0], g2.pos[1] - g0.pos[1]];
-  comprobar('si cambia de dirección a mitad de paso, gira al momento', d1[0] === 1 && d2[0] === 0 && d2[1] === 1, { primero: d1, alGirar: d2 });
+  const m1 = [g1.pos[0] - g0.pos[0], g1.pos[1] - g0.pos[1]], m2 = [g2.pos[0] - g0.pos[0], g2.pos[1] - g0.pos[1]];
+  comprobar('si cambia de dirección a mitad de paso, gira al momento', m1[0] === d1[1] && m1[1] === d1[2] && m2[0] === d2[1] && m2[1] === d2[2], { primero: m1, alGirar: m2, teclas: [d1[0], d2[0]] });
 });
 
 // 2b. ir a una casilla con un clic: anda todo el camino sin pararse
