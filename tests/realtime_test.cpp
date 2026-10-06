@@ -198,6 +198,28 @@ TEST_CASE( "realtime_movement_points_are_shared_out_among_the_tics", "[realtime]
     CHECK( realtime::puntos_por_tic( 100, false ) == 100 );
 }
 
+TEST_CASE( "realtime_npcs_and_monsters_get_a_whole_turn_once_per_real_second", "[realtime]" )
+{
+    // en factor tics seguidos, una vez la velocidad entera (en el tic de su fase) y nada en los demás; fases
+    // distintas, tics distintos
+    for( const int factor : { 12, 24, 48 } ) {
+        for( const int64_t fase : { 0, 7, 1000003 } ) {
+            int suma = 0;
+            int veces = 0;
+            for( int64_t t = 50; t < 50 + factor; t++ ) {
+                const int p = realtime::turno_entero( 100, t, fase, factor );
+                suma += p;
+                veces += p > 0 ? 1 : 0;
+            }
+            CHECK( suma == 100 );
+            CHECK( veces == 1 );
+        }
+    }
+    CHECK( realtime::turno_entero( 100, 3, 5, 1 ) == 100 );
+    // en las pruebas, como siempre
+    CHECK( realtime::puntos_por_turno( 100, 5, false ) == 100 );
+}
+
 TEST_CASE( "realtime_action_tics_come_once_per_real_second", "[realtime]" )
 {
     // una vez cada factor tics, en el tic que le toca a su fase

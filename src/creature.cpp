@@ -1,6 +1,8 @@
 #include "creature.h"
 #include "realtime.h"
 
+#include <cstdint>
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -400,7 +402,9 @@ void Creature::process_turn()
 
     // add an appropriate number of moves (tiempo real: repartidos entre los tics de un segundo real)
     if( !has_effect( effect_ridden ) ) {
-        moves += realtime::puntos_por_tic( get_speed(), false );
+        // (los monstruos: la velocidad entera una vez por segundo real, cada uno en su tic)
+        moves += realtime::puntos_por_turno( get_speed(), static_cast<int64_t>( reinterpret_cast<std::uintptr_t>( this ) / 64 ),
+                                             false );
     }
 }
 
