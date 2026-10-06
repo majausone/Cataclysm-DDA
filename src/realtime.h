@@ -97,6 +97,9 @@ std::string tomar_accion_pendiente();
 // si es una de las acciones del tiempo real (velocidad, pausa), la hace y devuelve true
 bool manejar_accion( const std::string &action );
 
+// ¿repintar ahora?  Hasta x10, siempre; más rápido, como mucho cada 40 ms (25 por segundo, de sobra para verlo):
+// repintar la pantalla entera en cada turno es lo que más frena a las velocidades altas
+bool conviene_repintar();
 // lo que se pinta en pantalla: «x1», «PAUSA», «x72 (va a x41)»...
 std::string texto_estado();
 // la ventanita de la velocidad, siempre a la vista (se crea la primera vez)
