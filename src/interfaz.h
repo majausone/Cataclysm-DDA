@@ -35,6 +35,9 @@ void orden( const std::string &json );
 void turno();
 // ¿hay interfaz web? (entonces el juego no pinta su barra lateral)
 bool activa();
+// el idioma de todo, juego e interfaz: "es" (español) o "en" (inglés); se guarda en las opciones
+void poner_idioma( const std::string &idioma );
+std::string idioma();
 
 // --- segunda parte (interfaz_menus.cpp, Encargo 8): los menús como en un videojuego
 // las imágenes del tileset (ruta en el sistema de ficheros del juego, tamaño de sprite, desde qué índice, cuántos)

@@ -145,8 +145,19 @@ bool hay_movimiento()
     } );
 }
 
+namespace
+{
+int imagenes_pintadas = 0;
+} // namespace
+
+int imagenes()
+{
+    return imagenes_pintadas;
+}
+
 void nueva_imagen()
 {
+    imagenes_pintadas++;
     const reloj_t::time_point ahora = reloj_t::now();
     for( auto it = pasos().begin(); it != pasos().end(); ) {
         if( segundos( it->second.visto, ahora ) > 5.0 ) {
@@ -158,3 +169,14 @@ void nueva_imagen()
 }
 
 } // namespace suave
+
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+extern "C" {
+    // cuántas imágenes del mapa se han pintado (para medir las imágenes por segundo desde la página)
+    EMSCRIPTEN_KEEPALIVE int cdda_imagenes()
+    {
+        return suave::imagenes();
+    }
+}
+#endif

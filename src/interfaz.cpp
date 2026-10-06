@@ -35,7 +35,9 @@
 #include "mapdata.h"
 #include "messages.h"
 #include "npc.h"
+#include "options.h"
 #include "output.h"
+#include "translations.h"
 #include "overmap_ui.h"
 #include "panels.h"
 #include "pathfinding.h"
@@ -170,6 +172,19 @@ std::vector<std::pair<std::string, std::string>> acciones_en( avatar &u, const t
 }
 } // namespace
 
+void poner_idioma( const std::string &idioma )
+{
+    get_options().get_option( "USE_LANG" ).setValue( idioma == "es" ? "es_ES" : "en" );
+    get_options().save();
+    set_language_from_options();
+}
+
+std::string idioma()
+{
+    const std::string l = get_option<std::string>( "USE_LANG" );
+    return l.rfind( "es", 0 ) == 0 ? "es" : "en";
+}
+
 bool activa()
 {
 #if defined(__EMSCRIPTEN__)
@@ -190,6 +205,7 @@ std::string estado_json()
     avatar &u = get_avatar();
     j.start_object();
     j.member( "nombre", u.get_name() );
+    j.member( "idioma", idioma() );
     j.member( "hora", to_string_time_of_day( calendar::turn ) );
     j.member( "dia", day_of_season<int>( calendar::turn ) + 1 );
     j.member( "estacion", calendar::name_season( season_of_year( calendar::turn ) ) );
@@ -632,6 +648,10 @@ static void hacer( const std::string &json )
         construction_menu( false );
         return;
     }
+    if( a == "idioma" ) {
+        poner_idioma( o.get_string( "v", "es" ) );
+        return;
+    }
     if( a == "cancelar_actividad" ) {
         if( u.activity ) {
             u.cancel_activity();
@@ -771,6 +791,15 @@ extern "C" {
     {
         n = std::clamp( n, 0, static_cast<int>( sizeof( bufer_ordenes ) ) );
         return std::string( bufer_ordenes, static_cast<size_t>( n ) );
+    }
+    // el idioma (también en el menú principal, antes de la partida): 0 inglés, 1 español; y cuál hay
+    EMSCRIPTEN_KEEPALIVE void cdda_ui_poner_idioma( int es )
+    {
+        interfaz::poner_idioma( es != 0 ? "es" : "en" );
+    }
+    EMSCRIPTEN_KEEPALIVE int cdda_ui_idioma()
+    {
+        return interfaz::idioma() == "es" ? 1 : 0;
     }
     EMSCRIPTEN_KEEPALIVE const char *cdda_ui_atlas()
     {
