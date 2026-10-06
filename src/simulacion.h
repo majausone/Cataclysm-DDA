@@ -14,6 +14,8 @@
 //    10 s, y al final FIN, CUELGUE, ATASCO o MUERTO;
 //  - con CDDA_SIM_NPC, pone un superviviente al lado del jugador cada 30 s (para probar el diálogo);
 //  - y se cierra solo a los CDDA_SIM_SEG segundos (300 por defecto). Código de salida: 0 bien, 3 cuelgue, 4 atasco.
+#include <string>
+
 namespace simulacion
 {
 
@@ -21,6 +23,8 @@ namespace simulacion
 void latido();
 // al empezar cada turno (game::do_turn)
 void turno();
+// un aviso del juego (debugmsg): se apunta (en la web, cdda_avisos y cdda_ultimo_aviso)
+void aviso( const std::string &texto );
 
 } // namespace simulacion
 

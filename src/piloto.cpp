@@ -228,13 +228,15 @@ static void poner_npc_al_lado()
     if( !donde ) {
         return;
     }
-    const character_id id = get_map().place_npc( donde->xy(), npc_observador );
+    // uno al azar, sin plantilla, como los que salen por el mundo (como el «spawn NPC» del menú de depuración)
+    shared_ptr_fast<npc> p = make_shared_fast<npc>();
+    p->normalize();
+    p->randomize();
+    p->spawn_at_precise( get_map().get_abs( *donde ) );
+    overmap_buffer.insert_npc( p );
+    p->form_opinion( u );
+    p->mission = NPC_MISSION_NULL;
     g->load_npcs();
-    if( npc *p = g->find_npc( id ) ) {
-        p->set_fac( faction_no_faction );
-        p->set_attitude( NPCATT_NULL );
-        p->set_mission( NPC_MISSION_NULL );
-    }
 }
 
 void turno()
