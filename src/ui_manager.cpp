@@ -580,6 +580,10 @@ void invalidate( const rectangle<point> &rect, const bool reenable_uis_below )
 void ceder_al_pintar( bool si )
 {
     ceder_tras_pintar = si;
+#if defined(__EMSCRIPTEN__) && defined(TILES)
+    // (y SDL, al presentar la imagen, también cede si se lo deja esta pista)
+    SDL_SetHint( SDL_HINT_EMSCRIPTEN_ASYNCIFY, si ? "1" : "0" );
+#endif
 }
 
 void redraw()
