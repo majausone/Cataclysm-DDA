@@ -57,7 +57,9 @@ await intentar('andar', async () => {
   await p.keyboard.up('ArrowRight');
   const z = await estado();
   comprobar('manteniendo la flecha anda seguido (2-3 casillas en 2,5 s)', z.pos[0] - a.pos[0] >= 2, { casillas: z.pos[0] - a.pos[0] });
-  comprobar('andando se pinta a unas 60 imágenes por segundo', fps >= 50, { imagenesPorSegundo: +fps.toFixed(1) });
+  const msImagen = await p.evaluate(() => wasmExports.cdda_rt_ms_imagen ? wasmExports.cdda_rt_ms_imagen() : -1);
+  const raf = await p.evaluate(() => new Promise((ok) => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 1000) requestAnimationFrame(f); else ok(n); }; requestAnimationFrame(f); }));
+  comprobar('andando se pinta a unas 60 imágenes por segundo', fps >= 50, { imagenesPorSegundo: +fps.toFixed(1), msPorImagen: +msImagen.toFixed(1), fotogramasDelNavegador: raf });
   comprobar('el tiempo sigue andando', z.turno > a.turno, { turnos: z.turno - a.turno });
   // girar a mitad de paso: derecha y, enseguida, abajo; se ve abajo al momento (no al acabar el paso)
   await esperar(1500);
@@ -97,7 +99,7 @@ await intentar('ir con un clic', async () => {
   }
   await foto('ido');
   comprobar('con un clic va hasta la casilla', llegado, { destino, desde: a.pos, hasta: ultimo });
-  comprobar('y por el camino no se para (ningún hueco de más de 1,6 s entre pasos)', maxQuieto <= 1600, { msMasLargoQuieto: maxQuieto });
+  comprobar('y por el camino no se para (ningún hueco de más de 2 s entre pasos; en diagonal un paso cuesta 1,4)', maxQuieto <= 2000, { msMasLargoQuieto: maxQuieto });
 });
 
 // 3. el inventario: el muñequito, una tarjeta, soltar algo y cogerlo del suelo
@@ -200,12 +202,28 @@ await intentar('idioma', async () => {
   await p.keyboard.press('Escape');
 });
 
-// 8. guardar, morir y cargar
-await intentar('guardar, morir y cargar', async () => {
+// 8. guardar y salir, cargar la partida, y morir (al morir, la partida va al cementerio: por eso se carga antes)
+await intentar('guardar, salir y cargar', async () => {
   await p.keyboard.press('Escape'); await esperar(500);
-  await clic('#ventana-opciones .guardar'); await esperar(4000);
+  await clic('#ventana-opciones .salir');
+  await p.waitForSelector('#inicio:not(.oculto)', { timeout: 120000 });
+  await esperar(1500);
+  await clic('#inicio .cargar'); await esperar(1000);
+  await foto('cargar');
+  const partidas = await p.locator('#inicio .partida').count();
+  comprobar('hay partidas para cargar', partidas > 0, { partidas });
+  if (partidas) {
+    await clic('#inicio .partida');
+    await p.waitForSelector('#hud:not(.oculto)', { timeout: 240000 });
+    await esperar(3000);
+    await foto('cargada');
+    const e = await estado();
+    comprobar('la partida se carga y el reloj sigue', !!e && e.turno > 0, e || {});
+  }
+});
+await intentar('morir', async () => {
   await p.evaluate(() => wasmExports.cdda_sim_morir());
-  // (al morir el juego pregunta, «¿abrir el diario por última vez?»...: se contesta lo último, «No», en nuestra ventana)
+  // (si el juego pregunta algo al morir, se contesta lo último, «No», en nuestra ventana)
   let preguntas = 0;
   for (let t0 = Date.now(); Date.now() - t0 < 120000 && !(await p.locator('#inicio:not(.oculto)').count());) {
     if (await p.locator('#ventana-lista:not(.oculto)').count()) {
@@ -218,17 +236,6 @@ await intentar('guardar, morir y cargar', async () => {
   await esperar(1500);
   await foto('muerte');
   comprobar('sale nuestra pantalla de muerte', await p.locator('#inicio .muerte').count() > 0);
-  await clic('#inicio .cargar'); await esperar(1000);
-  await foto('cargar');
-  const partidas = await p.locator('#inicio .partida').count();
-  comprobar('hay partidas para cargar', partidas > 0, { partidas });
-  if (partidas) {
-    await clic('#inicio .partida');
-    await p.waitForSelector('#hud:not(.oculto)', { timeout: 240000 });
-    await esperar(3000);
-    await foto('cargada');
-    comprobar('la partida se carga', !!(await estado()));
-  }
 });
 
 const e = await estado();
