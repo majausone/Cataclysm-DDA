@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdlib>
+#include <fstream>
 #include <optional>
 #include <thread>
 
@@ -345,12 +347,22 @@ void esperar_turno()
     }
     r.empezar();
     // (cada 10 s, al registro del juego: a qué va de verdad y cuánto tarda cada turno)
+    // (con CDDA_RT_BANCO=fichero, también a ese fichero: es el modo de medida de abajo, y el juego se cierra a la fuerza)
     static auto ultimo_registro = std::chrono::steady_clock::now();
+    static int64_t turnos_registro = r.turnos;
     const auto ahora = std::chrono::steady_clock::now();
     if( ahora - ultimo_registro >= std::chrono::seconds( 10 ) ) {
+        const double s = std::chrono::duration<double>( ahora - ultimo_registro ).count();
+        const double tps = ( r.turnos - turnos_registro ) / s;
         ultimo_registro = ahora;
-        DebugLog( D_INFO, D_GAME ) << "tiempo real: velocidad " << nombre( r.vel() ) << ", " << r.turnos_por_segundo <<
+        turnos_registro = r.turnos;
+        DebugLog( D_INFO, D_GAME ) << "tiempo real: velocidad " << nombre( r.vel() ) << ", " << tps <<
                                    " turnos/s, " << r.ms_turno_medio << " ms por turno" << ( r.retrasado ? " (no llega)" : "" );
+        const char *banco = std::getenv( "CDDA_RT_BANCO" );
+        if( banco != nullptr && std::string( banco ).size() > 1 ) {
+            std::ofstream( banco, std::ios::app ) << "velocidad " << nombre( r.vel() ) << ", " << tps << " turnos/s, " <<
+                                                  r.ms_turno_medio << " ms por turno" << ( r.retrasado ? " (no llega)" : "" ) << "\n";
+        }
     }
 }
 
@@ -363,6 +375,12 @@ bool plazo_vencido( bool vencido_sin_tiempo_real )
     if( r.vel() == velocidad::pausa ) {
         return false;
     }
+    // (a más de x10, el turno del jugador mira el teclado una vez y lo pasa: lo que falta hasta el plazo se espera
+    // en esperar_turno, sin ceder el control; esperarlo aquí, mirando el teclado, se llevaba un fotograma del
+    // navegador por vuelta y a x72 (turnos de 14 ms) se perdía uno de cada dos plazos)
+    if( multiplicador( r.vel() ) > 10 ) {
+        return true;
+    }
     return r.toca();
 }
 
@@ -374,6 +392,9 @@ int ms_espera_teclado()
     const int64_t falta = el_reloj().ms_hasta_turno();
     if( falta < 0 ) {
         return 125;
+    }
+    if( multiplicador( el_reloj().vel() ) > 10 ) {
+        return 1;
     }
     return static_cast<int>( std::clamp<int64_t>( falta, 1, 125 ) );
 }
@@ -521,11 +542,11 @@ extern "C" {
 
 // ------------------------------------------------------------------ modo de medida (escritorio)
 // Con CDDA_RT_BANCO en el entorno, el juego se maneja solo para medir el tiempo real sin nadie delante: un hilo mete
-// en la cola de SDL (SDL_PushEvent vale desde otro hilo) Enter (idioma), «d» (Play Now! Default Scenario) y luego F7
-// cada 15 s (x1 -> x3 -> x10 -> x30 -> x72 -> máx). Las cifras salen en el registro (debug.log, «tiempo real: ...»).
+// en la cola de SDL (SDL_PushEvent vale desde otro hilo) «d» (Play Now! Default Scenario: sin traducciones no sale
+// la pantalla del idioma y «New Game» ya está abierto) y luego F7
+// cada 25 s (x1 -> x3 -> x10 -> x30 -> x72 -> máx). Las cifras salen en el registro (debug.log, «tiempo real: ...») y,
+// si CDDA_RT_BANCO es un fichero, en él (una línea cada 10 s).
 #if defined(TILES) && !defined(__EMSCRIPTEN__)
-#include <cstdlib>
-#include <thread>
 #include <SDL3/SDL.h>
 namespace
 {
@@ -561,13 +582,11 @@ struct banco_t {
             const auto dormir = []( int s ) {
                 std::this_thread::sleep_for( std::chrono::seconds( s ) );
             };
-            dormir( 45 );
-            tecla_sdl( SDLK_RETURN, SDL_SCANCODE_RETURN, nullptr );
-            dormir( 20 );
+            dormir( 40 );
             tecla_sdl( SDLK_D, SDL_SCANCODE_D, "d" );
             dormir( 70 );
             for( int i = 0; i < 5; i++ ) {
-                dormir( 15 );
+                dormir( 25 );
                 tecla_sdl( SDLK_F7, SDL_SCANCODE_F7, nullptr );
             }
         } ).detach();
