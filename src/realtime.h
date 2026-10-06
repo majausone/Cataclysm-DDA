@@ -130,6 +130,8 @@ void mantener_direccion( int dx, int dy );
 std::string accion_direccion();
 // si el juego está parado esperando y algo se mueve, repinta ya (la página lo llama en cada fotograma)
 int pintar_si_toca();
+// la web: el juego está (o deja de estar) esperando una tecla en lo más bajo (sdltiles), cediendo al navegador
+void espera_de_entrada( bool si );
 // lo que tarda en pintarse una imagen (ms, media móvil)
 double ms_imagen();
 // la dirección mantenida (de -1 a 1; 0, 0 si no hay)
