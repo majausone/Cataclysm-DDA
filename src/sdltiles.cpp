@@ -7043,6 +7043,12 @@ int get_scaling_factor()
     return scaling_factor;
 }
 
+point tamano_ventana_logica()
+{
+    const int escala = std::max( 1, scaling_factor );
+    return point( WindowWidth / escala, WindowHeight / escala );
+}
+
 static int map_font_width()
 {
     if( use_tiles && tilecontext ) {

@@ -736,7 +736,8 @@ std::string casilla_en_pixel_json( int px, int py )
         const point hasta = desde + dim.window_size_pixel;
         if( logico.x >= desde.x && logico.y >= desde.y && logico.x < hasta.x && logico.y < hasta.y ) {
             const point tile( tilecontext->get_tile_width(), tilecontext->get_tile_height() );
-            const point_bub_ms c = cata_tiles::screen_to_player( logico - desde, tile, dim.window_size_pixel,
+            const point_bub_ms c = cata_tiles::screen_to_player( logico - desde - tilecontext->desplazamiento_vista, tile,
+                                   dim.window_size_pixel,
                                    g->ter_view_p.xy(), g->is_tileset_isometric() );
             const point_bub_ms yo = get_avatar().pos_bub().xy();
             j.start_object();

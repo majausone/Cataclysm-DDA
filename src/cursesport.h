@@ -95,5 +95,7 @@ int projected_window_height();
 bool handle_resize( int w, int h );
 void resize_term( int cell_w, int cell_h );
 int get_scaling_factor();
+// el tamaño de la ventana de verdad (sin el mínimo de columnas del juego), en píxeles lógicos
+point tamano_ventana_logica();
 #endif // TUI
 #endif // CATA_SRC_CURSESPORT_H

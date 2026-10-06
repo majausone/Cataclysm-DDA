@@ -1244,6 +1244,12 @@ class cata_tiles
         // está pintando)
         point camara_suave;
         point desfase_suave;
+    public:
+        // (pantallas estrechas) el juego tiene un mínimo de 80 columnas; si su ventana del mapa es más ancha o alta
+        // que lo que se ve, se desplaza para que el centro (el jugador) quede en el centro de lo visible. En píxeles,
+        // 0 o negativo; los clics lo descuentan (interfaz::casilla_en_pixel_json)
+        point desplazamiento_vista;
+    protected:
         // offset for drawing, in pixels.
         point op;
 
