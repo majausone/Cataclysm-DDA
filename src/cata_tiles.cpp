@@ -1,5 +1,6 @@
 #if defined(TILES)
 #include "cata_tiles.h"
+#include "suave.h"
 #include "tileset_loader.h"
 
 #include <algorithm>
@@ -629,6 +630,10 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
     o = is_isometric() ? center.xy().raw() : center.xy().raw() - point( POSX, POSY );
 
     op = dest;
+    // (movimiento suave: si la vista sigue al jugador, el mapa se desliza con él)
+    suave::nueva_imagen();
+    camara_suave = center.xy() == get_avatar().pos_bub().xy() && !is_isometric() ?
+                   suave::camara( tile_width, tile_height ) : point::zero;
     screentile_width = s.x;
     screentile_height = s.y;
 
@@ -2231,7 +2236,7 @@ point cata_tiles::player_to_screen( const point_bub_ms &pos ) const
             divide_round_down( ( colrow.y + 1 ) * tile_width, 4 ) - tile_height,
         };
     } else {
-        return op + point{ colrow.x * tile_width, colrow.y * tile_height };
+        return op + camara_suave + point{ colrow.x * tile_width, colrow.y * tile_height };
     }
 }
 
@@ -2834,8 +2839,9 @@ bool cata_tiles::draw_from_id_string_internal( const std::string &id, TILE_CATEG
     const tile_type *tt = nullptr;
     std::optional<tile_lookup_res> res;
 
-    // translate from player-relative to screen relative tile position
-    const point screen_pos = player_to_screen( pos.xy() );
+    // translate from player-relative to screen relative tile position (más el desfase del movimiento suave de la
+    // criatura que se está pintando)
+    const point screen_pos = player_to_screen( pos.xy() ) + desfase_suave;
 
     if( retract < 0 && ( prevent_occlusion_transp || prevent_occlusion_retract ) ) {
         if( prevent_occlusion == 0 || disable_occlusion ) {
@@ -4308,6 +4314,11 @@ bool cata_tiles::draw_critter_at( const tripoint_bub_ms &p, lit_level ll, int &h
         }
     }
     const bool always_visible = pcritter && pcritter->has_flag( mon_flag_ALWAYS_VISIBLE );
+    // (movimiento suave: la criatura se pinta donde va en su paso, no en su casilla)
+    restore_on_out_of_scope<point> restaurar_desfase( desfase_suave );
+    if( pcritter != nullptr && !is_isometric() ) {
+        desfase_suave = suave::desfase( *pcritter, tile_width, tile_height );
+    }
     const auto override = monster_override.find( p );
     if( override != monster_override.end() ) {
         const mtype_id id = std::get<0>( override->second );

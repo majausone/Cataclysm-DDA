@@ -18,6 +18,7 @@
 #include "options.h"
 #include "output.h"
 #include "piloto.h"
+#include "suave.h"
 #include "player_activity.h"
 #include "translations.h"
 #include "type_id.h"
@@ -320,7 +321,9 @@ reloj &el_reloj()
     // la velocidad de partida, la de las opciones (una vez)
     if( !velocidad_de_opciones && !test_mode ) {
         velocidad_de_opciones = true;
-        r.poner( de_texto( get_option<std::string>( "REALTIME_SPEED" ) ) );
+        // (siempre el día de una hora: 24 tics por segundo. El jugador no elige velocidad ni pausa; las otras
+        // velocidades son para el modo simulación y las pruebas)
+        r.poner( velocidad::normal );
     }
     return r;
 }
@@ -371,20 +374,10 @@ void alternar_pausa()
 
 void peligro()
 {
-    if( !activo() ) {
-        return;
-    }
-    const std::string que = get_option<std::string>( "REALTIME_DANGER" );
-    reloj &r = el_reloj();
-    if( que == "pause" ) {
-        if( r.vel() != velocidad::pausa ) {
-            alternar_pausa();
-        }
-    } else if( que == "x1" || que == "normal" ) {
-        // («acelerar todo» vuelve sola a la normal; las duraciones del día no se tocan)
-        if( r.vel() == velocidad::maxima ) {
-            poner( velocidad::normal );
-        }
+    // (el juego no se para nunca y el jugador no elige velocidad: un peligro a la vista no cambia el reloj. Lo que
+    // sí: si está a la máxima (solo en el modo simulación y las pruebas), vuelve al día normal)
+    if( activo() && el_reloj().vel() == velocidad::maxima ) {
+        poner( velocidad::normal );
     }
 }
 
@@ -414,7 +407,9 @@ void esperar_turno()
             esperar_sin_ceder( r );
             continue;
         }
-        const int t = falta < 0 ? 100 : static_cast<int>( std::clamp<int64_t>( falta, 1, 50 ) );
+        // (mientras algo se mueve, la espera más corta: se repinta a 60 imágenes por segundo)
+        const int t = falta < 0 ? 100 : static_cast<int>( std::clamp<int64_t>( falta, 1,
+                      suave::hay_movimiento() ? 16 : 50 ) );
         input_context ctxt = get_default_mode_input_context();
         const std::string action = ctxt.handle_input( t );
         if( action == "TIMEOUT" ) {
@@ -422,7 +417,7 @@ void esperar_turno()
             interfaz::turno();
             // (que se vea la velocidad y lo que pasa, de vez en cuando, mientras espera)
             const auto ahora = std::chrono::steady_clock::now();
-            if( ahora - ultimo_repintado > std::chrono::milliseconds( 250 ) ) {
+            if( ahora - ultimo_repintado > std::chrono::milliseconds( suave::hay_movimiento() ? 15 : 250 ) ) {
                 ultimo_repintado = ahora;
                 repintar();
             }
@@ -515,6 +510,32 @@ void acaba_espera_jugador()
     }
 }
 
+namespace
+{
+int direccion_x = 0;
+int direccion_y = 0;
+} // namespace
+
+void mantener_direccion( int dx, int dy )
+{
+    direccion_x = std::clamp( dx, -1, 1 );
+    direccion_y = std::clamp( dy, -1, 1 );
+}
+
+std::string accion_direccion()
+{
+    if( !activo() ) {
+        return "";
+    }
+    static const std::array<std::array<const char *, 3>, 3> nombres = { {
+            { { "LEFTUP", "UP", "RIGHTUP" } },
+            { { "LEFT", "", "RIGHT" } },
+            { { "LEFTDOWN", "DOWN", "RIGHTDOWN" } }
+        }
+    };
+    return nombres[direccion_y + 1][direccion_x + 1];
+}
+
 bool hay_accion_pendiente()
 {
     return activo() && accion_pendiente.has_value();
@@ -529,13 +550,8 @@ std::string tomar_accion_pendiente()
 
 bool manejar_accion( const std::string &action )
 {
-    if( action == "REALTIME_FASTER" ) {
-        subir();
-    } else if( action == "REALTIME_SLOWER" ) {
-        bajar();
-    } else if( action == "REALTIME_PAUSE" ) {
-        alternar_pausa();
-    } else if( action == "AUTOPILOT" ) {
+    // (sin teclas de velocidad ni de pausa: el juego no se para nunca)
+    if( action == "AUTOPILOT" ) {
         piloto::pedir( !piloto::activo() );
     } else {
         return false;
@@ -572,7 +588,8 @@ bool conviene_repintar()
     }
     static std::chrono::steady_clock::time_point ultimo;
     const auto ahora = std::chrono::steady_clock::now();
-    if( ahora - ultimo >= std::chrono::milliseconds( 40 ) ) {
+    // (mientras algo se mueve, a 60 imágenes por segundo; si no, a 25)
+    if( ahora - ultimo >= std::chrono::milliseconds( suave::hay_movimiento() ? 15 : 40 ) ) {
         ultimo = ahora;
         return true;
     }
