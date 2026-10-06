@@ -227,6 +227,11 @@ void jugar()
     auto t_tecla = reloj_t::now();
     int escapes = 0;
     const bool con_npc = std::getenv( "CDDA_SIM_NPC" ) != nullptr;
+    // (CDDA_SIM_CARGA=n: n zombis alrededor al empezar, para medir en una zona cargada)
+    if( const char *carga = std::getenv( "CDDA_SIM_CARGA" ) ) {
+        escribir( std::string( "CARGA " ) + carga + " zombis" );
+        piloto::pedir_carga( std::atoi( carga ) );
+    }
     const bool con_guardado = std::getenv( "CDDA_SIM_GUARDAR" ) != nullptr;
     auto t_guardado = reloj_t::now();
     auto t_npc = reloj_t::now() - std::chrono::seconds( 25 );
