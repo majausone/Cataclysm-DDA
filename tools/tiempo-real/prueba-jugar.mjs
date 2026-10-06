@@ -77,13 +77,14 @@ await intentar('ir con un clic', async () => {
   await esperar(1500);
   const destino = await p.evaluate(() => {
     const leer = (ptr) => { const m = new Uint8Array(wasmMemory.buffer); let f = ptr; while (m[f]) f++; return JSON.parse(new TextDecoder().decode(m.subarray(ptr, f))); };
-    for (const [dx, dy] of [[4, 0], [-4, 0], [0, 4], [0, -4], [3, 3], [-3, -3], [3, -3], [-3, 3]]) {
+    for (let r = 5; r >= 3; r--) for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
       const c = leer(wasmExports.cdda_ui_casilla(dx, dy));
       if (c && c.acciones.some((a) => a.id === 'ir')) return { dx, dy };
     }
     return null;
   });
-  if (!destino) { comprobar('hay una casilla libre a 4 pasos para ir', false); return; }
+  if (!destino) { comprobar('hay una casilla libre a 3-5 pasos para ir', false); return; }
   const a = await estado();
   await p.evaluate(({ dx, dy }) => window.interfazCdda.ordenar({ a: 'ir', dx, dy }), destino);
   let ultimo = a.pos, tUltimo = Date.now(), maxQuieto = 0, llegado = false;

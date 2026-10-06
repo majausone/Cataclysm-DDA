@@ -153,6 +153,8 @@
   function icono(id, cat = 'item', variante = '', tam = 32) {
     const c = document.createElement('canvas');
     c.className = 'icono'; c.width = tam; c.height = tam; c.style.width = tam + 'px'; c.style.height = tam + 'px';
+    // (lienzo por software: los acelerados, tan pequeños y tantos, a veces se componen mal (fondo negro o fuera de sitio))
+    c.getContext('2d', { willReadFrequently: true });
     if (!id) return c;
     const clave = `${id}|${cat}|${variante || ''}`;
     if (sprites.has(clave) && sprites.get(clave)) { if (atlas.listo) pintarIcono(c, sprites.get(clave)); else apuntar(clave, c); return c; }
@@ -222,7 +224,7 @@
     if (n.id === 'animo') return { ':D': T('bien_animo'), ':)': T('bien_animo'), ':|': T('bien_animo') }[t] || t || T('bien_animo');
     return t || T('bien_' + n.id) || '';
   }
-  let firmaMano = '';
+  let firmaMano = null;
   function pintarHud(e) {
     $('.hora', hud).textContent = e.hora.replace(/:\d\d(\s?[AP]M)$/, '$1');
     $('.fecha', hud).textContent = `${T('dia')} ${e.dia} ${T('de')} ${e.estacion}`;
@@ -249,7 +251,7 @@
     const a = e.actividad;
     if (!a || ['ACT_NULL', 'ACT_WAIT_STAMINA'].includes(a.id)) { actividad.classList.add('oculto'); return; }
     actividad.classList.remove('oculto');
-    $('.nombre', actividad).textContent = limpio(a.nombre) || a.id;
+    $('.nombre', actividad).textContent = limpio(a.texto || a.nombre) || a.id;
     $('.cancelar', actividad).textContent = T('cancelar');
     $('.cancelar', actividad).classList.toggle('oculto', !a.cancelable);
     const bar = $('.barra', actividad);
@@ -497,7 +499,8 @@
     };
     const pintar = () => {
       const q = buscar.value.toLowerCase();
-      const vale = (x) => (catFabricar === 'todas' || x.categoria === catFabricar) && (!q || x.nombre.toLowerCase().includes(q));
+      // (en «Todas», las prácticas no: solo en su pestaña o buscándolas)
+      const vale = (x) => (catFabricar === 'todas' ? (x.categoria !== 'CC_PRACTICE' || q) : x.categoria === catFabricar) && (!q || x.nombre.toLowerCase().includes(q));
       const puede = r.conocidas.filter((x) => vale(x) && x.puede).sort((a, b) => a.nombre.localeCompare(b.nombre));
       const no = r.conocidas.filter((x) => vale(x) && !x.puede).sort((a, b) => a.nombre.localeCompare(b.nombre));
       const bloq = r.porAprender.filter(vale);
