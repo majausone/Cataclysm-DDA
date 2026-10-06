@@ -92,9 +92,9 @@
   background: var(--fondo-solido); border-left: 1px solid var(--borde); box-shadow: var(--sombra);
   display: flex; flex-direction: column;
 }
-#panel .pestanas { display: flex; flex-wrap: wrap; gap: 2px; padding: 8px 8px 0; border-bottom: 1px solid var(--borde); }
+#panel .pestanas { display: flex; gap: 0; padding: 8px 4px 0; border-bottom: 1px solid var(--borde); overflow-x: auto; }
 #panel .pestanas button {
-  background: none; border: 0; color: var(--suave); padding: 8px 10px; cursor: pointer; font-size: 13px;
+  background: none; border: 0; color: var(--suave); padding: 8px 7px; cursor: pointer; font-size: 12px; white-space: nowrap;
   border-bottom: 2px solid transparent;
 }
 #panel .pestanas button.activa { color: var(--texto); border-bottom-color: var(--acento); }

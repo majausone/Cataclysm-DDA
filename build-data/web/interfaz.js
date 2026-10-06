@@ -40,7 +40,13 @@
 
   // --- HUD
   const ICONOS = { hambre: 'fa-utensils', sed: 'fa-droplet', sueno: 'fa-bed', temperatura: 'fa-temperature-half', animo: 'fa-face-smile', aguante: 'fa-person-running', dolor: 'fa-bandage' };
-  const VELOCIDADES = [['fa-pause', 'Pausa'], ['', 'Día 2 h'], ['', 'Día 1 h'], ['', 'Día 30 min'], ['fa-forward', 'Acelerar']];
+  // (lo que elige el jugador: la pausa y cuánto dura un día; nada más)
+  const VELOCIDADES = [['fa-pause', 'Pausa'], ['', 'Día 2 h'], ['', 'Día 1 h'], ['', 'Día 30 min']];
+  const PARTES = { head: 'Cabeza', torso: 'Torso', arm_l: 'Brazo izq.', arm_r: 'Brazo der.', leg_l: 'Pierna izq.', leg_r: 'Pierna der.', hand_l: 'Mano izq.', hand_r: 'Mano der.', foot_l: 'Pie izq.', foot_r: 'Pie der.', eyes: 'Ojos', mouth: 'Boca' };
+  const ORDEN_PARTES = ['head', 'torso', 'arm_l', 'arm_r', 'leg_l', 'leg_r'];
+  const ESTACIONES = { Spring: 'primavera', Summer: 'verano', Autumn: 'otoño', Winter: 'invierno' };
+  const TIEMPOS = { Sunny: 'Soleado', Clear: 'Despejado', Cloudy: 'Nublado', Overcast: 'Cubierto', Drizzle: 'Llovizna', Rain: 'Lluvia', 'Rain Storm': 'Tormenta', Thunderstorm: 'Tormenta eléctrica', Lightning: 'Rayos', Flurries: 'Copos de nieve', Snowing: 'Nieva', Snowstorm: 'Ventisca', Mist: 'Neblina', Fog: 'Niebla', Portal: 'Portal', 'Acid Drizzle': 'Llovizna ácida', 'Acid Rain': 'Lluvia ácida' };
+  const BIEN = { hambre: 'Saciado', sed: 'Bien', sueno: 'Descansado', dolor: 'Sin dolor', animo: 'Normal' };
   const hud = crear(`<div id="hud" class="ui">
       <div class="fila"><span class="hora">--:--</span><span class="fecha"></span>
         <button class="plegar" title="Plegar"><i class="fa-solid fa-chevron-up"></i></button></div>
@@ -59,22 +65,30 @@
 
   function pintarHud(e) {
     $('.hora', hud).textContent = e.hora.replace(/:\d\d(\s?[AP]M)$/, '$1');
-    $('.fecha', hud).textContent = `Día ${e.dia} · ${e.estacion}`;
-    $('.clima', hud).innerHTML = `<i class="fa-solid ${e.exterior ? 'fa-cloud-sun' : 'fa-house'}"></i> <span style="color:${color(e.tiempoColor)}">${esc(e.tiempo)}</span> · ${esc(e.temperatura)}`;
+    $('.fecha', hud).textContent = `Día ${e.dia} de ${ESTACIONES[e.estacion] || e.estacion}`;
+    $('.clima', hud).innerHTML = `<i class="fa-solid ${e.exterior ? 'fa-cloud-sun' : 'fa-house'}"></i> <span style="color:${color(e.tiempoColor)}">${esc(TIEMPOS[e.tiempo] || e.tiempo)}</span> · ${Math.round(e.temperaturaC)} °C${e.exterior ? '' : ' fuera'}`;
     [...$('.velocidades', hud).children].forEach((b, i) => b.classList.toggle('activa', i === e.vel));
     $('.necesidades', hud).innerHTML = e.necesidades.map((n) => `
       <i class="fa-solid ${ICONOS[n.id] || 'fa-circle'}" title="${esc(n.nombre)}"></i>
-      <div class="necesidad"><div class="rotulo"><span>${esc(n.nombre)}</span><span style="color:${color(n.color)}">${esc(n.texto)}</span></div>
+      <div class="necesidad"><div class="rotulo"><span>${esc(n.nombre)}</span><span style="color:${color(n.color)}">${esc(textoNecesidad(n))}</span></div>
       <div class="barra"><div style="width:${Math.round(n.barra * 100)}%;background:${color(n.color)}"></div></div></div>`).join('');
-    $('.cuerpo', hud).innerHTML = e.cuerpo.map((p) => {
+    $('.cuerpo', hud).innerHTML = ordenarPartes(e.cuerpo).map((p) => {
       const f = p.max > 0 ? p.vida / p.max : 0;
       const c = f > 0.75 ? '#5cb85c' : f > 0.4 ? '#e8d44d' : '#e05a5a';
       const marcas = `${p.sangra ? '<i class="fa-solid fa-droplet" title="Sangra"></i>' : ''}${p.rota ? ' <i class="fa-solid fa-bone" title="Rota"></i>' : ''}`;
-      return `<div class="parte"><div class="rotulo"><span>${esc(p.nombre)}</span><span class="marcas">${marcas}</span></div>
+      return `<div class="parte"><div class="rotulo"><span>${esc(PARTES[p.id] || p.nombre)}</span><span class="marcas">${marcas}</span></div>
         <div class="barra"><div style="width:${Math.round(f * 100)}%;background:${c}"></div></div></div>`;
     }).join('');
     $('.mano', hud).innerHTML = `<i class="fa-solid fa-hand"></i> En la mano: <b>${esc(e.enMano)}</b>`;
   }
+
+  // (el texto de una necesidad: el del juego, o si no dice nada porque va bien, «bien»)
+  function textoNecesidad(n) {
+    const t = String(n.texto || '').trim();
+    if (n.id === 'animo') return { ':D': 'Feliz', ':)': 'Contento', ':|': 'Normal', ':(': 'Triste', 'D:': 'Muy mal' }[t] || t || BIEN.animo;
+    return t || BIEN[n.id] || '';
+  }
+  const ordenarPartes = (ps) => [...ps].sort((a, b) => (ORDEN_PARTES.indexOf(a.id) + 99) % 99 - (ORDEN_PARTES.indexOf(b.id) + 99) % 99);
 
   // --- registro de mensajes
   const TIPOS = { 0: ['t-bien', 'fa-circle-check'], 1: ['t-mal', 'fa-circle-exclamation'], 2: ['t-mixto', 'fa-circle-half-stroke'], 3: ['t-aviso', 'fa-triangle-exclamation'], 4: ['t-info', 'fa-circle-info'], 5: ['t-normal', 'fa-circle'], 7: ['t-mal', 'fa-crosshairs'], 8: ['t-mal', 'fa-burst'], 9: ['t-normal', 'fa-crosshairs'] };
@@ -189,7 +203,7 @@
     pintar();
   }
 
-  const CATEGORIAS = { CC_FOOD: 'Comida', CC_DRINK: 'Bebida', CC_CHEM: 'Química', CC_ELECTRONIC: 'Electrónica', CC_ARMOR: 'Ropa', CC_WEAPON: 'Armas', CC_AMMO: 'Munición', CC_OTHER: 'Otros', CC_ANIMALS: 'Animales', CC_BUILDING: 'Construcción', CC_APPLIANCE: 'Aparatos', CC_CAMP: 'Campamento', CC_PRACTICE: 'Práctica' };
+  const CATEGORIAS = { CC_FOOD: 'Comida', CC_DRINK: 'Bebida', CC_CHEM: 'Química', CC_ELECTRONIC: 'Electrónica', CC_ARMOR: 'Ropa', CC_WEAPON: 'Armas', CC_AMMO: 'Munición', CC_OTHER: 'Otros', CC_ANIMALS: 'Animales', CC_BUILDING: 'Construcción', CC_APPLIANCE: 'Aparatos', CC_CAMP: 'Campamento', CC_PRACTICE: 'Práctica', 'CC_*': 'Varias' };
   function pintarFabricar(c) {
     const r = json('cdda_ui_recetas') || { conocidas: [], porAprender: [] };
     const buscar = crear(`<input class="buscar" placeholder="Buscar una receta...">`);
@@ -258,12 +272,12 @@
     e.cuerpo.forEach((p) => {
       const f = p.max > 0 ? p.vida / p.max : 0;
       const col = f > 0.75 ? '#5cb85c' : f > 0.4 ? '#e8d44d' : '#e05a5a';
-      c.appendChild(crear(`<div class="fila-item"><div class="nombre">${esc(p.nombre)}
+      c.appendChild(crear(`<div class="fila-item"><div class="nombre">${esc(PARTES[p.id] || p.nombre)}
         <small>${p.vida} / ${p.max}${p.sangra ? ' · <span class="t-mal">sangra</span>' : ''}${p.rota ? ' · <span class="t-mal">rota</span>' : ''}</small>
         <div class="barra"><div style="width:${Math.round(f * 100)}%;background:${col}"></div></div></div></div>`));
     });
     c.appendChild(crear(`<h3>Necesidades</h3>`));
-    e.necesidades.forEach((n) => c.appendChild(crear(`<div class="fila-item"><i class="fa-solid ${ICONOS[n.id]}"></i><div class="nombre">${esc(n.nombre)}<small style="color:${color(n.color)}">${esc(n.texto)}</small>
+    e.necesidades.forEach((n) => c.appendChild(crear(`<div class="fila-item"><i class="fa-solid ${ICONOS[n.id]}"></i><div class="nombre">${esc(n.nombre)}<small style="color:${color(n.color)}">${esc(textoNecesidad(n))}</small>
       <div class="barra"><div style="width:${Math.round(n.barra * 100)}%;background:${color(n.color)}"></div></div></div></div>`)));
   }
 
@@ -321,11 +335,13 @@
   // --- arranque: cuando hay partida, se monta y se refresca solo
   function montar() {
     document.body.append(hud, registro, boton, panel, menuCasilla);
-    ['mousedown', 'mouseup', 'click'].forEach((t) => window.addEventListener(t, clicEnMapa, true));
+    // (primero, un clic fuera del menú de casilla lo cierra; luego, si es en el mapa, se abre el de la casilla nueva)
     window.addEventListener('mousedown', (e) => { if (!menuCasilla.contains(e.target)) cerrarMenuCasilla(); }, true);
+    ['mousedown', 'mouseup', 'click'].forEach((t) => window.addEventListener(t, clicEnMapa, true));
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Tab' && ventanas() <= 1) { e.preventDefault(); e.stopPropagation(); panel.classList.contains('oculto') ? abrirPanel() : cerrarPanel(); }
-      if (e.key === 'Escape') cerrarMenuCasilla();
+      // (con el menú de casilla abierto, Escape solo lo cierra a él: no le llega al juego)
+      if (e.key === 'Escape' && !menuCasilla.classList.contains('oculto')) { e.preventDefault(); e.stopPropagation(); cerrarMenuCasilla(); }
     }, true);
   }
   let montado = false;
