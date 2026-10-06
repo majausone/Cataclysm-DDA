@@ -2305,7 +2305,9 @@ bool game::do_regular_action( action_id &act, avatar &player_character,
             break;
 
         case ACTION_TIMEOUT:
-            if( check_safe_mode_allowed( false ) ) {
+            // tiempo real: si se le acaba el turno sin pulsar, espera ese turno, también con el «safe mode»
+            // parado por un bicho a la vista (si no, el reloj se quedaría parado esperando una tecla)
+            if( realtime::activo() || check_safe_mode_allowed( false ) ) {
                 player_character.pause();
             }
             break;
