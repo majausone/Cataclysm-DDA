@@ -465,7 +465,10 @@ input_context game::get_player_input( std::string &action )
                 g->invalidate_main_ui_adaptor();
             }
 
-            ui_manager::redraw_invalidated();
+            // (tiempo real: a las velocidades altas, no en cada vuelta)
+            if( realtime::conviene_repintar() ) {
+                ui_manager::redraw_invalidated();
+            }
             ctxt.set_timeout( realtime::ms_espera_teclado() );
         } while( handle_mouseview( ctxt, action ) && uquit != QUIT_WATCH
                  && ( action != "TIMEOUT" || !current_turn.has_timeout_elapsed() ) );

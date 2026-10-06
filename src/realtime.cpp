@@ -390,6 +390,24 @@ bool manejar_accion( const std::string &action )
     return true;
 }
 
+bool conviene_repintar()
+{
+    if( !activo() ) {
+        return true;
+    }
+    const int m = multiplicador( el_reloj().vel() );
+    if( m >= 0 && m <= 10 ) {
+        return true;
+    }
+    static std::chrono::steady_clock::time_point ultimo;
+    const auto ahora = std::chrono::steady_clock::now();
+    if( ahora - ultimo >= std::chrono::milliseconds( 40 ) ) {
+        ultimo = ahora;
+        return true;
+    }
+    return false;
+}
+
 std::string texto_estado()
 {
     const reloj &r = el_reloj();

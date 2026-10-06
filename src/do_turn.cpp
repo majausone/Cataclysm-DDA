@@ -656,7 +656,8 @@ bool game::do_turn()
                 explosion_handler::process_explosions();
                 sounds::process_sound_markers( &u );
                 if( !u.activity && uquit != QUIT_WATCH
-                    && ( !u.has_distant_destination() || calendar::once_every( 10_seconds ) ) ) {
+                    && ( !u.has_distant_destination() || calendar::once_every( 10_seconds ) )
+                    && realtime::conviene_repintar() ) {
                     wait_popup_reset();
                     ui_manager::redraw();
                 }
