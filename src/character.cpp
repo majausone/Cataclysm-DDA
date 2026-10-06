@@ -2299,8 +2299,11 @@ void Character::process_turn()
     // (tiempo real: repartidos entre los tics de un segundo real; en una actividad larga o durmiendo, enteros: van al
     // reloj del mundo)
     if( !has_effect( effect_ridden ) ) {
-        moves += realtime::puntos_por_tic( get_speed(), static_cast<bool>( activity ) ||
-                                           has_effect( effect_sleep ) );
+        const bool al_ritmo_del_mundo = static_cast<bool>( activity ) || has_effect( effect_sleep );
+        // (los NPC: la velocidad entera una vez por segundo real, cada uno en su tic; el jugador, repartida, para que
+        // responda al momento)
+        moves += is_npc() ? realtime::puntos_por_turno( get_speed(), getID().get_value(), al_ritmo_del_mundo ) :
+                 realtime::puntos_por_tic( get_speed(), al_ritmo_del_mundo );
     }
     // NPCs currently don't make any use of their scent, pointless to calculate it
     // TODO: make use of NPC scent.

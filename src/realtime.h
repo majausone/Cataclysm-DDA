@@ -42,6 +42,12 @@ int factor_accion();
 // larga, durmiendo), la velocidad entera
 int puntos_por_tic( int velocidad_criatura, bool al_ritmo_del_mundo );
 int reparto( int velocidad_criatura, int64_t tic, int factor );
+// los de NPC y monstruos: la velocidad entera una vez por segundo real, en el tic de su fase (repartidos entre los
+// tics para que no se muevan todos a la vez). Así lo que en el juego acaba el turno (poner los puntos a 0: hablar,
+// esperar...) les cuesta un segundo, como siempre, y no 1/24. El jugador sigue con el reparto, para que su tecla se
+// haga al momento. Al ritmo del mundo (actividad larga, durmiendo), la velocidad entera en cada tic
+int puntos_por_turno( int velocidad_criatura, int64_t fase, bool al_ritmo_del_mundo );
+int turno_entero( int velocidad_criatura, int64_t tic, int64_t fase, int factor );
 // ¿le toca en este tic a lo que va a velocidad real y se hace «una vez por turno» (fuego, humo, olor, vehículos,
 // efectos de combate...)? Una vez cada factor tics; fase, para repartirlos y que no caigan todos en el mismo tic
 bool tic_de_accion( int fase );

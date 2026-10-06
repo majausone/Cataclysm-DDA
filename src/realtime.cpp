@@ -115,6 +115,22 @@ int puntos_por_tic( int velocidad_criatura, bool al_ritmo_del_mundo )
     return reparto( velocidad_criatura, tic_actual(), factor_accion() );
 }
 
+int turno_entero( int velocidad_criatura, int64_t tic, int64_t fase, int factor )
+{
+    if( factor <= 1 ) {
+        return velocidad_criatura;
+    }
+    return ( ( ( tic + fase ) % factor ) + factor ) % factor == 0 ? velocidad_criatura : 0;
+}
+
+int puntos_por_turno( int velocidad_criatura, int64_t fase, bool al_ritmo_del_mundo )
+{
+    if( al_ritmo_del_mundo ) {
+        return velocidad_criatura;
+    }
+    return turno_entero( velocidad_criatura, tic_actual(), fase, factor_accion() );
+}
+
 bool tic_de_accion( int fase )
 {
     return es_tic_de_accion( tic_actual(), fase, factor_accion() );
