@@ -4,7 +4,8 @@
 //  - CUELGUE: la página deja de contestar (un bucle sin fin en el juego) o el juego deja de mirar el teclado
 //    (cdda_latidos no sube);
 //  - ATASCO: el turno no avanza ni con 10 Escape (un menú que no se cierra);
-//  - ERROR: un error de la página (el wasm se ha caído).
+//  - ERROR: un error de la página (el wasm se ha caído);
+//  - AVISOS: avisos del juego (debugmsg: cdda_avisos), que se apuntan y se quitan con la barra espaciadora.
 // De cada fallo, una foto y las teclas con su turno (para repetirlo). Con la misma semilla, las mismas teclas.
 //   node tools/tiempo-real/cazafallos-web.mjs [--url http://localhost:8095/] [--sesiones 3] [--minutos 5]
 //        [--semilla 1] [--velocidad 6] [--salida carpeta] [--teclas hablar] [--npc]
@@ -45,9 +46,11 @@ async function sesion(n) {
   const estado = () => conTiempo(p.evaluate(() => {
     const e = window.wasmExports;
     if (!e || !e.cdda_turno) return null;
-    return { turno: e.cdda_turno(), latidos: e.cdda_latidos ? e.cdda_latidos() : -1, ventanas: e.cdda_ventanas() };
+    let aviso = '';
+    if (e.cdda_ultimo_aviso) { const ptr = e.cdda_ultimo_aviso(), m = new Uint8Array(window.wasmMemory.buffer); let fin = ptr; while (m[fin]) fin++; aviso = new TextDecoder().decode(m.subarray(ptr, fin)); }
+    return { turno: e.cdda_turno(), latidos: e.cdda_latidos ? e.cdda_latidos() : -1, ventanas: e.cdda_ventanas(), avisos: e.cdda_avisos ? e.cdda_avisos() : 0, aviso };
   }), 8000);
-  const res = { nombre, semilla, resultado: 'BIEN', turnos: 0, teclas: 0 };
+  const res = { nombre, semilla, resultado: 'BIEN', turnos: 0, teclas: 0, avisos: [] };
   const fallo = async (tipo, detalle) => {
     res.resultado = tipo; res.detalle = detalle;
     await conTiempo(p.screenshot({ path: `${SALIDA}/${nombre}-${tipo}.png` }), 10000).catch(() => {});
@@ -60,13 +63,14 @@ async function sesion(n) {
     const t0 = Date.now();
     for (;;) {
       await esperar(3000);
-      const e = await estado();
+      // (mientras arranca, la página puede tardar en contestar: no es un fallo)
+      const e = await estado().catch(() => null);
       if (antes && e && e.turno > antes.turno) break;
       antes = e;
       if (Date.now() - t0 > 240000) throw new Error('no empieza la partida');
     }
     await p.evaluate((v) => window.wasmExports.cdda_rt_poner_velocidad(v), VELOCIDAD);
-    const inicio = await estado();
+    const inicio = await conTiempo(estado(), 30000).catch(() => null) || antes;
     let ult = inicio, tTurno = Date.now(), tLatido = Date.now(), tEstado = 0, escapes = 0, sinRespuesta = 0, tNpc = 0;
     const fin = Date.now() + MINUTOS * 60000;
     while (Date.now() < fin) {
@@ -87,6 +91,8 @@ async function sesion(n) {
       if (!e) continue;
       // (la velocidad: el peligro la baja; se vuelve a poner)
       await p.evaluate((v) => window.wasmExports.cdda_rt_poner_velocidad(v), VELOCIDAD).catch(() => {});
+      // (los avisos del juego: cada uno es un fallo; con el aviso en pantalla el juego espera la barra espaciadora)
+      if (e.avisos > (ult.avisos || 0)) { res.avisos.push(`turno ${e.turno}: ${e.aviso}`); teclas.push(`${e.turno} AVISO ${e.aviso}`); await p.keyboard.press(' ').catch(() => {}); }
       if (e.latidos !== ult.latidos) tLatido = Date.now();
       if (e.turno !== ult.turno) { tTurno = Date.now(); escapes = 0; }
       ult = e;
@@ -99,6 +105,7 @@ async function sesion(n) {
       }
     }
     res.turnos = ult.turno - inicio.turno;
+    if (res.resultado === 'BIEN' && res.avisos.length) res.resultado = 'AVISOS';
   } catch (err) {
     if (res.resultado === 'BIEN') await fallo('ERROR', err.message.slice(0, 300));
   }

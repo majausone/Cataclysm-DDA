@@ -2,18 +2,19 @@
 //   node tools/tiempo-real/prueba-web.mjs [--url http://localhost:8095/] [--fotos carpeta] [--minutos 3]
 // Arranca una partida («Play Now! (Default Scenario)») y comprueba, leyendo el estado del juego desde JS (las
 // funciones cdda_* que exporta src/realtime.cpp, en wasmExports):
-//  1. a cada velocidad pasan los turnos por segundo que tocan (y cuánto tarda cada turno);
-//  2. con un menú abierto (el inventario) el turno no avanza, y al cerrarlo sigue;
+//  1. a cada velocidad pasan los tics por segundo que tocan (día lento 12, normal 24, rápido 48; y cuánto tarda
+//     cada uno);
+//  2. con un menú abierto (el inventario) el tic no avanza, y al cerrarlo sigue;
 //  3. en pausa (F8) no avanza, y al quitarla sigue;
-//  4. pulsar teclas mientras corre no lo para ni lo atasca;
-//  5. una partida de unos minutos a x72 moviéndose, sin cuelgues ni errores.
+//  4. andando con el día normal, el reloj sigue a su paso (24 tics por segundo);
+//  5. una partida de unos minutos con el día normal moviéndose, sin cuelgues ni errores.
 // Devuelve 0 si todo va bien. Hace fotos de cada paso.
 import { mkdirSync } from 'node:fs';
 const { chromium } = await import('playwright');
 const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
 const URL = arg('url', 'http://localhost:8095/'), FOTOS = arg('fotos', 'fotos-tiempo-real'), MINUTOS = +arg('minutos', 3);
 mkdirSync(FOTOS, { recursive: true });
-const VEL = { pausa: 0, x1: 1, x3: 2, x10: 3, x30: 4, x72: 5, max: 6 };
+const VEL = { pausa: 0, lento: 1, normal: 2, rapido: 3, max: 4 };
 const b = await chromium.launch({ headless: true, args: ['--enable-features=WebAssemblyExperimentalJSPI', '--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
 const errores = [];
@@ -54,13 +55,13 @@ comprobar('la partida arranca y el reloj corre solo', enMarcha, { segundos: Math
 await foto('1-partida');
 
 // 1. velocidades
-for (const [nombre, v, seg] of [['x1', VEL.x1, 10], ['x3', VEL.x3, 8], ['x10', VEL.x10, 6], ['x30', VEL.x30, 6], ['x72', VEL.x72, 6], ['max', VEL.max, 6]]) {
+for (const [nombre, v, seg] of [['lento', VEL.lento, 8], ['normal', VEL.normal, 8], ['rapido', VEL.rapido, 6], ['max', VEL.max, 6]]) {
   await poner(v);
   await esperar(1500);
   const a = await estado(), ta = Date.now();
   await esperar(seg * 1000);
   const z = await estado(), s = (Date.now() - ta) / 1000;
-  const tps = (z.turno - a.turno) / s, pedido = [0, 1, 3, 10, 30, 72][v];
+  const tps = (z.turno - a.turno) / s, pedido = [0, 12, 24, 48][v];
   r.velocidades[nombre] = { turnosPorSegundo: +tps.toFixed(1), msPorTurno: +z.msTurno.toFixed(2), retrasado: !!z.retrasado, hora: z.hora };
   // (a las de verdad, lo pedido con un 10 % de margen; si no llega, que lo diga en pantalla: retrasado)
   if (pedido) comprobar(`a ${nombre} pasan ${pedido} turnos por segundo (o dice que no llega)`, Math.abs(tps - pedido) <= pedido * 0.1 + 0.3 || (tps < pedido && z.retrasado), r.velocidades[nombre]);
@@ -73,7 +74,7 @@ for (const [nombre, v, seg] of [['x1', VEL.x1, 10], ['x3', VEL.x3, 8], ['x10', V
 }
 
 // 2. un menú abierto para el reloj
-await poner(VEL.x10);
+await poner(VEL.normal);
 await esperar(1000);
 await p.keyboard.press('i');
 await esperar(1500);
@@ -98,11 +99,11 @@ await p.keyboard.press('F8');
 await esperar(3000);
 const p2 = await estado();
 comprobar('en pausa (F8) no avanza', p1.turno === p0.turno && p0.vel === VEL.pausa, { turnos: p1.turno - p0.turno, vel: p0.vel });
-comprobar('y al quitar la pausa sigue a la velocidad de antes', p2.turno > p1.turno && p2.vel === VEL.x10, { turnos: p2.turno - p1.turno, vel: p2.vel });
+comprobar('y al quitar la pausa sigue a la velocidad de antes', p2.turno > p1.turno && p2.vel === VEL.normal, { turnos: p2.turno - p1.turno, vel: p2.vel });
 
 // 4. teclas mientras corre (andar por ahí): el reloj sigue. Solo cuenta el tiempo sin ningún menú abierto (al
 // chocar con alguien o con un mueble el juego pregunta, y con la pregunta abierta el reloj se para, como debe)
-await poner(VEL.x1);
+await poner(VEL.normal);
 await esperar(1000);
 let turnosAndando = 0, segAndando = 0, pasos = 0, menus = 0;
 let prev = await estado(), tprev = Date.now();
@@ -116,11 +117,11 @@ for (let i = 0; i < 24; i++) {
   prev = await estado(); tprev = Date.now();
 }
 const tpsAndando = turnosAndando / Math.max(0.001, segAndando);
-comprobar('andando a x1, el reloj sigue a su paso', Math.abs(tpsAndando - 1) < 0.2, { turnosPorSegundo: +tpsAndando.toFixed(2), segundosSinMenus: +segAndando.toFixed(1), pasos, menusCerrados: menus });
+comprobar('andando con el día normal, el reloj sigue a su paso (24 tics/s)', Math.abs(tpsAndando - 24) < 24 * 0.15, { turnosPorSegundo: +tpsAndando.toFixed(2), segundosSinMenus: +segAndando.toFixed(1), pasos, menusCerrados: menus });
 await foto('5-andando');
 
-// 5. una partida de unos minutos a x72, moviéndose de vez en cuando
-await poner(VEL.x72);
+// 5. una partida de unos minutos con el día normal, moviéndose de vez en cuando
+await poner(VEL.normal);
 const l0 = await estado(), tl = Date.now();
 const teclas = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowRight', '.'];
 let quietos = 0, ultimo = l0.turno;
@@ -135,10 +136,8 @@ for (let i = 0; Date.now() - tl < MINUTOS * 60000; i++) {
 }
 const l1 = await estado(), sl = (Date.now() - tl) / 1000;
 r.partida = { minutos: +(sl / 60).toFixed(1), turnos: l1.turno - l0.turno, turnosPorSegundo: +((l1.turno - l0.turno) / sl).toFixed(1), msPorTurno: +l1.msTurno.toFixed(2), hora: l1.hora, vecesParado: quietos };
-// (sin cuelgues: nunca parado, sin errores, y a buen paso: al menos el 75 % del tope medido, con teclas y menús por medio)
-const tope = Math.max(...Object.values(r.velocidades).map((x) => x.turnosPorSegundo));
-r.partida.tope = tope;
-comprobar(`${MINUTOS} minutos a x72 sin cuelgues`, quietos === 0 && errores.length === 0 && (l1.turno - l0.turno) / sl >= 0.75 * Math.min(72, tope), r.partida);
+// (sin cuelgues: nunca parado, sin errores, y a buen paso: al menos el 75 % de 24, con teclas y menús por medio)
+comprobar(`${MINUTOS} minutos con el día normal sin cuelgues`, quietos === 0 && errores.length === 0 && (l1.turno - l0.turno) / sl >= 0.75 * 24, r.partida);
 await foto('6-partida-larga');
 
 await b.close();
