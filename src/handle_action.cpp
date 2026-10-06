@@ -1,5 +1,6 @@
 #include "game.h" // IWYU pragma: associated
 #include "piloto.h"
+#include "interfaz.h"
 #include "realtime.h"
 
 #include <algorithm>
@@ -476,6 +477,8 @@ input_context game::get_player_input( std::string &action )
                 ui_manager::redraw_invalidated();
             }
             ctxt.set_timeout( realtime::ms_espera_teclado() );
+            // (las órdenes de la interfaz web también mientras espera tu tecla: en pausa no pasa ningún tic)
+            interfaz::turno();
         } while( handle_mouseview( ctxt, action ) && uquit != QUIT_WATCH
                  && ( action != "TIMEOUT" || !current_turn.has_timeout_elapsed() ) );
         ctxt.reset_timeout();
@@ -486,6 +489,7 @@ input_context game::get_player_input( std::string &action )
                 break;
             }
             ctxt.set_timeout( realtime::ms_espera_teclado() );
+            interfaz::turno();
         }
         ctxt.reset_timeout();
     }
