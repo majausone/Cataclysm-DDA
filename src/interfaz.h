@@ -1,0 +1,39 @@
+#pragma once
+#ifndef CATA_SRC_INTERFAZ_H
+#define CATA_SRC_INTERFAZ_H
+
+#include <string>
+
+// La interfaz de la versión web (Encargo 7, B): el enchufe entre el juego y la página. La interfaz va en HTML y
+// JavaScript alrededor del juego (build-data/web/, rama tiempo-real-web), y se cambia sin recompilar.
+//  - Hacia fuera, el estado en JSON: el del personaje para el HUD (hora, tiempo, necesidades, salud por partes, lo
+//    que lleva en la mano), los mensajes con su tipo, el inventario con lo que se puede hacer con cada cosa, las
+//    recetas y construcciones con si se pueden hacer y por qué no, el personaje (atributos, habilidades,
+//    competencias) y lo que hay en una casilla con las acciones que tienen sentido ahí.
+//  - Hacia dentro, órdenes en JSON («abre esa puerta», «come esto», «fabrica tal receta»...): se guardan y se hacen al
+//    empezar el siguiente tic, en el hilo del juego y nunca a mitad de un menú.
+// En la web, las funciones cdda_ui_* (EMSCRIPTEN_KEEPALIVE, al final de interfaz.cpp).
+namespace interfaz
+{
+
+std::string estado_json();
+// los mensajes: cuántos hay en total (para saber si hay nuevos) y los últimos n con su tipo
+std::string mensajes_json( int n );
+std::string inventario_json();
+std::string recetas_json();
+std::string construcciones_json();
+std::string personaje_json();
+// lo que hay en la casilla (dx, dy) respecto del jugador y qué se puede hacer ahí
+std::string casilla_json( int dx, int dy );
+// la casilla bajo un píxel del canvas (el de la ventana del juego): {"dx", "dy"} o null
+std::string casilla_en_pixel_json( int px, int py );
+// una orden (JSON): se hace al empezar el siguiente tic
+void orden( const std::string &json );
+// al empezar cada tic (game::do_turn): las órdenes pendientes
+void turno();
+// ¿hay interfaz web? (entonces el juego no pinta su barra lateral)
+bool activa();
+
+} // namespace interfaz
+
+#endif // CATA_SRC_INTERFAZ_H
