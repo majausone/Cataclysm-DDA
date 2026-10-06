@@ -16,7 +16,7 @@
 #include "platform_win.h"
 #endif
 
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 #endif
 
@@ -165,7 +165,7 @@ void ofstream_wrapper::close()
         throw std::runtime_error( "moving temporary file \"" + temp_path.u8string() + "\" failed" );
     }
 
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
     EM_ASM( window.setFsNeedsSync(); );
 #endif
 }

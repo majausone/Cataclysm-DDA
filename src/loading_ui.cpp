@@ -1,5 +1,7 @@
 #include "loading_ui.h"
 
+#include <cstdint>
+
 #include "cached_options.h"
 #include "input.h"
 #include "options.h"
@@ -69,7 +71,26 @@ static void redraw()
         const float image_start_pos_x = center_x - ( gLUI->splash_size.x / 2 );
         ImGui::SetCursorPosX( image_start_pos_x );
         if( gLUI->splash ) {
-            ImGui::Image( reinterpret_cast<ImTextureID>( gLUI->splash.get() ), gLUI->splash_size );
+            // SDL's software renderer rejects the two very large triangles made
+            // by ImGui::Image with "triangle area overflow".  Split the image
+            // into smaller quads instead.
+            constexpr float tile_size = 128.0f;
+            const ImVec2 image_pos = ImGui::GetCursorScreenPos();
+            const ImTextureID texture_id = static_cast<ImTextureID>(
+                                               reinterpret_cast<intptr_t>( gLUI->splash.get() ) );
+            ImDrawList *const draw_list = ImGui::GetWindowDrawList();
+            for( float y = 0.0f; y < gLUI->splash_size.y; y += tile_size ) {
+                const float end_y = std::min( y + tile_size, gLUI->splash_size.y );
+                for( float x = 0.0f; x < gLUI->splash_size.x; x += tile_size ) {
+                    const float end_x = std::min( x + tile_size, gLUI->splash_size.x );
+                    draw_list->AddImage( texture_id,
+                                         image_pos + ImVec2{ x, y }, image_pos + ImVec2{ end_x, end_y },
+                                         ImVec2{ x / gLUI->splash_size.x, y / gLUI->splash_size.y },
+                                         ImVec2{ end_x / gLUI->splash_size.x,
+                                                 end_y / gLUI->splash_size.y } );
+                }
+            }
+            ImGui::Dummy( gLUI->splash_size );
         }
 
         // hint
@@ -211,9 +232,6 @@ static void update_state( const std::string &context, const std::string &step )
                               static_cast<float>( surf->h ) / longest_side_ratio
                             };
         if( !renderer_should_abort_frame() ) {
-            // Skip the upload when recovery is queued: it would invalidate the
-            // texture. The splash stays absent for this load rather than uploading
-            // against a renderer about to be rebuilt.
             gLUI->splash = CreateTextureFromSurface( get_sdl_renderer(), surf );
         }
         gLUI->window_size = gLUI->splash_size + ImVec2{ 0.0f, 2.0f * ImGui::GetTextLineHeightWithSpacing() };
@@ -236,13 +254,35 @@ static void update_state( const std::string &context, const std::string &step )
     gLUI->step = std::string( step );
 }
 
+#ifdef TILES
+static void ensure_splash_texture()
+{
+    if( gLUI == nullptr || gLUI->splash || gLUI->chosen_load_img == cata_path() ||
+        renderer_should_abort_frame() ) {
+        return;
+    }
+    SDL_Surface_Ptr surf = load_image(
+                              gLUI->chosen_load_img.get_unrelative_path().u8string().c_str() );
+    gLUI->splash = CreateTextureFromSurface( get_sdl_renderer(), surf );
+}
+#endif
+
 void loading_ui::show( const std::string &context, const std::string &step )
 {
     if( test_mode ) {
         return;
     }
+    // Apply a queued resize before calculating the splash layout and uploading
+    // its texture.
+    drain_renderer_recovery();
     update_state( context, step );
     drain_renderer_recovery();
+#ifdef TILES
+    // Recovery releases renderer-owned textures, including the splash.  A
+    // resize can arrive while the PNG is being decoded above, so retry the
+    // upload after the recovery drain and on every subsequent loading step.
+    ensure_splash_texture();
+#endif
     ui_manager::redraw();
     refresh_display();
     inp_mngr.pump_events();

@@ -103,7 +103,7 @@ std::unique_ptr<cataimgui::client> imclient;
 #include "worldfactory.h"
 #endif
 
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 #endif
 
@@ -599,7 +599,7 @@ static void WinCreate()
     // Track desired fullscreen mode separately; applied after window creation
     FullscreenMode desired_fullscreen = FullscreenMode::windowed;
 
-#if !defined(__ANDROID__) && !defined(EMSCRIPTEN)
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
     if( get_option<std::string>( "FULLSCREEN" ) == "fullscreen" ) {
         desired_fullscreen = FullscreenMode::fullscreen_exclusive;
         fullscreen = true;
@@ -615,7 +615,7 @@ static void WinCreate()
         window_flags |= CATA_WINDOW_MAXIMIZED;
     }
 #endif
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
     // Without this, the game only displays in the top-left 1/4 of the window.
     window_flags &= ~CATA_WINDOW_HIGH_DPI;
 #endif
@@ -659,7 +659,7 @@ static void WinCreate()
         SetWindowFullscreen( ::window.get(), desired_fullscreen );
     }
 
-#if !defined(__ANDROID__) && !defined(EMSCRIPTEN)
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
     // On Android SDL seems janky in windowed mode so we're fullscreen all the time.
     // Fullscreen mode is now modified so it obeys terminal width/height, rather than
     // overwriting it with this calculation.
@@ -712,6 +712,8 @@ static void WinCreate()
         dbg( D_INFO ) << "Only SPIR-V shader artifacts present; biasing the "
                       "GPU device toward Vulkan.";
     }
+#  elif defined(__EMSCRIPTEN__)
+    SDL_SetHint( SDL_HINT_RENDER_DRIVER, "gpu,opengles2" );
 #  else
     SDL_SetHint( SDL_HINT_RENDER_DRIVER, "gpu,opengl" );
 #  endif
@@ -4452,7 +4454,7 @@ void resize_term( const int cell_w, const int cell_h )
 void toggle_fullscreen_window()
 {
     // Can't enter fullscreen on Emscripten.
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
     return;
 #endif
 
@@ -6691,7 +6693,7 @@ void input_manager::pump_events()
 
 // This is how we're actually going to handle input events, SDL getch
 // is simply a wrapper around this.
-#if !defined(EMSCRIPTEN)
+#if !defined(__EMSCRIPTEN__)
 // time until next android touch timer CheckMessages checks, from its file statics
 static std::optional<uint32_t> android_touch_wait_ms( const uint32_t now )
 {
@@ -6771,7 +6773,7 @@ input_event input_manager::get_input_event( const keyboard_mode preferred_keyboa
         try_sdl_update();
     }
 
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
     // emscripten must yield to the browser through Asyncify, which SDL_Delay does
     if( inputdelay < 0 ) {
         do {

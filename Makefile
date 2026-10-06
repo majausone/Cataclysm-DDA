@@ -119,6 +119,7 @@ CXX_WARNINGS = \
 ifeq ($(NATIVE), emscripten)
   # The EM_ASM macro triggers this warning.
   WARNINGS += -Wno-gnu-zero-variadic-macro-arguments
+  WARNINGS += -Wno-experimental
 endif
 # Uncomment below to disable warnings
 #WARNINGS = -w
@@ -691,24 +692,28 @@ endif
 
 # Emscripten
 ifeq ($(NATIVE), emscripten)
-  CXX=emcc
-  LD=emcc
+  CC=emcc
+  CXX=em++
+  LD=em++
   ifeq ($(CCACHE), 1)
-    CXX=$(CCACHEBIN) emcc
-    LD=$(CCACHEBIN) emcc
+    CC=$(CCACHEBIN) emcc
+    CXX=$(CCACHEBIN) em++
   endif
 
   # Flags that are common across compile and link phases.
-  # The SDL2 emscripten ports this used to request are gone. Emscripten ships an
-  # SDL3 port (3.4.2) and SDL3_ttf, but no SDL3_image or SDL3_mixer, so how to
-  # build tiles here is an open question. This target cannot currently produce a
-  # working build; the rest of the emscripten plumbing is kept as it bit-rotted.
-  EMCC_COMMON_FLAGS = -fexceptions
+  EMCC_COMMON_FLAGS = -sUSE_SDL=3 -sUSE_SDL_TTF=3 -fwasm-exceptions -Wno-error=experimental -Wno-unused-but-set-global -Wno-unused-function -Wno-unused-template
+
+  ifndef EMSCRIPTEN_SDL3_IMAGE_PREFIX
+    $(error EMSCRIPTEN_SDL3_IMAGE_PREFIX must point to a WebAssembly SDL3_image installation)
+  endif
+  CXXFLAGS += -isystem $(EMSCRIPTEN_SDL3_IMAGE_PREFIX)/include
+  LDFLAGS += -L$(EMSCRIPTEN_SDL3_IMAGE_PREFIX)/lib -lSDL3_image
 
   ifneq ($(RELEASE), 1)
     EMCC_COMMON_FLAGS += -g
   endif
 
+  CFLAGS += $(EMCC_COMMON_FLAGS)
   CXXFLAGS += $(EMCC_COMMON_FLAGS)
   LDFLAGS += $(EMCC_COMMON_FLAGS)
 
@@ -718,12 +723,10 @@ ifeq ($(NATIVE), emscripten)
   LDFLAGS += -sMAXIMUM_MEMORY=4GB
   LDFLAGS += -sALLOW_MEMORY_GROWTH
   LDFLAGS += -sSTACK_SIZE=262144
-  LDFLAGS += -sASYNCIFY
-  LDFLAGS += -sASYNCIFY_STACK_SIZE=16384
+  LDFLAGS += -sJSPI
   LDFLAGS += -sENVIRONMENT=web
   LDFLAGS += -lidbfs.js
   LDFLAGS += -lembind
-  LDFLAGS += -sWASM_BIGINT # Browser will require BigInt support.
   LDFLAGS += -sMAX_WEBGL_VERSION=2
 
   ifeq ($(RELEASE), 1)
@@ -805,7 +808,9 @@ ifeq ($(TILES), 1)
   # macOS FRAMEWORK builds resolve SDL3 via Apple framework lookup rather than
   # pkg-config, so skip the version check there; non-framework macOS still
   # uses pkg-config and gets the check.
-  SDL3_DO_VERSION_CHECK := 1
+  ifneq ($(NATIVE),emscripten)
+    SDL3_DO_VERSION_CHECK := 1
+  endif
   ifeq ($(NATIVE),osx)
     ifdef FRAMEWORK
       SDL3_DO_VERSION_CHECK :=
@@ -1182,6 +1187,9 @@ ifeq ($(TILES), 1)
 $(SHADERS_STAMP): $(SHADERS_SRC) tools/build_shaders.py
 	python3 tools/build_shaders.py --shader-dir $(SHADERS_DIR) --formats $(BUILD_SHADER_FORMATS) --stamp $@
 endif
+
+.PHONY: emscripten-objects
+emscripten-objects: $(OBJS)
 
 $(TARGET): $(OBJS) $(SHADERS_STAMP)
 	+$(LD) $(W32FLAGS) -o $(TARGET) $(OBJS) $(LDFLAGS)

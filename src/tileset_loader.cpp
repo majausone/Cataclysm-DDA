@@ -22,6 +22,10 @@
 #include <utility>
 #include <vector>
 
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
+
 #include "cata_assert.h"
 #include "cata_path.h"
 #include "cata_scope_helpers.h"
@@ -50,6 +54,58 @@
 #define dbg(x) DebugLog((x),D_SDL) << __FILE__ << ":" << __LINE__ << ": "
 
 static const std::string ITEM_HIGHLIGHT( "highlight_item" );
+
+#if defined(__EMSCRIPTEN__)
+EM_ASYNC_JS( int, ensure_web_tileset_is_loaded, ( const char *tileset_id ), {
+    const id = UTF8ToString( tileset_id );
+    const locateFile = Module["locateFile"] || ( path => path );
+
+    try {
+        if( !globalThis.cddaTilesetManifestPromise ) {
+            globalThis.cddaTilesetManifestPromise = fetch( locateFile( "tilesets.json", "" ) )
+            .then( response => {
+                if( !response.ok ) {
+                    throw new Error( response.status + ": " + response.url );
+                }
+                return response.json();
+            } );
+        }
+
+        const manifest = await globalThis.cddaTilesetManifestPromise;
+        const packageInfo = manifest[id];
+        if( !packageInfo ) {
+            return 0;
+        }
+
+        if( !globalThis.cddaTilesetLoads ) {
+            globalThis.cddaTilesetLoads = new Map();
+        }
+        if( !globalThis.cddaTilesetLoads.has( id ) ) {
+            const loadPromise = ( async() => {
+                if( globalThis.beginTilesetDownload ) {
+                    globalThis.beginTilesetDownload( id, packageInfo.size );
+                }
+                try {
+                    const moduleUrl = locateFile( packageInfo.module, "" );
+                    const packageModule = await import( moduleUrl );
+                    await packageModule.default( Module );
+                } finally {
+                    if( globalThis.endTilesetDownload ) {
+                        globalThis.endTilesetDownload( id );
+                    }
+                }
+            } )();
+            globalThis.cddaTilesetLoads.set( id, loadPromise );
+        }
+
+        await globalThis.cddaTilesetLoads.get( id );
+        return 1;
+    } catch( error ) {
+        console.error( "Failed to load tileset " + id, error );
+        return -1;
+    }
+} );
+#endif
 
 namespace
 {
@@ -336,6 +392,12 @@ atlas_upload_interrupt tileset_cache::loader::load( const std::string &tileset_i
         const uint64_t renderer_instance_generation, const uint64_t gpu_textures_generation,
         const atlas_upload_poll &poll, atlas_replay_quarantine *const quarantine )
 {
+#if defined(__EMSCRIPTEN__)
+    if( ensure_web_tileset_is_loaded( tileset_id.c_str() ) < 0 ) {
+        throw std::runtime_error( "Failed to download tileset \"" + tileset_id + "\"" );
+    }
+#endif
+
     std::string json_conf;
     std::string layering;
     std::string tileset_path;

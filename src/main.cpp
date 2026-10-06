@@ -66,7 +66,7 @@
 #   include <unistd.h> // getpid()
 #endif
 
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 #endif
 
@@ -575,7 +575,7 @@ bool assure_essential_dirs_exist()
 
 } // namespace
 
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
 EM_ASYNC_JS( void, mount_idbfs, (), {
     console.log( "Mounting IDBFS for persistence..." );
     FS.mkdir( '/home/web_user/.cataclysm-dda' );
@@ -671,7 +671,7 @@ void initialize_default_paths()
 #if defined(__ANDROID__)
     PATH_INFO::init_user_dir( external_storage_path );
 #else
-#   if defined(USE_HOME_DIR) || defined(USE_XDG_DIR) || defined(EMSCRIPTEN)
+#   if defined(USE_HOME_DIR) || defined(USE_XDG_DIR) || defined(__EMSCRIPTEN__)
     PATH_INFO::init_user_dir( "" );
 #   else
     PATH_INFO::init_user_dir( "." );
@@ -697,7 +697,7 @@ void validate_directories()
 
 void initialize_debugging()
 {
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
     setupDebug( DebugOutput::std_err );
 #else
     setupDebug( DebugOutput::file );
@@ -901,7 +901,7 @@ int main( int argc, const char *argv[] )
 
     initialize_runtime();
 
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
     mount_idbfs();
 #endif
 

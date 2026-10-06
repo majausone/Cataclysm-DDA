@@ -28,7 +28,7 @@
 
         height: 100%;
         overflow: hidden;
-        background-color: grey;
+        background-color: black;
       }
 
       canvas {
@@ -177,8 +177,6 @@
       style="
         width: 100%;
         height: 100%;
-        min-width: 640px;
-        min-height: 384px;
       "
       tabindex="-1"
     ></canvas>
@@ -188,10 +186,30 @@
       const canvas = document.getElementById("canvas");
       const loadingMessage = document.getElementById("loading-message");
       const settingsMenu = document.getElementById("settings-menu");
+      let menuReady = false;
+      let tilesetDownloadActive = false;
 
       window.addEventListener("menuready", () => {
-        loadingMessage.style.display = "none";
+        menuReady = true;
+        window.dispatchEvent(new UIEvent("resize"));
+        if (!tilesetDownloadActive) {
+          loadingMessage.style.display = "none";
+        }
       });
+
+      window.beginTilesetDownload = (id, size) => {
+        tilesetDownloadActive = true;
+        loadingMessage.style.display = "block";
+        const sizeInMb = (size / 1024 / 1024).toFixed(1);
+        loadingMessage.textContent = `Downloading ${id} (${sizeInMb} MB)...`;
+      };
+
+      window.endTilesetDownload = () => {
+        tilesetDownloadActive = false;
+        if (menuReady) {
+          loadingMessage.style.display = "none";
+        }
+      };
 
       document.getElementById("settings-gear").onclick = () => {
         if (settingsMenu.style.display === "none") {
@@ -264,6 +282,12 @@
         })(),
         setStatus: function (text) {
           if (text) {
+            const progress = /^Downloading data\.\.\. \((\d+)\/(\d+)\)$/.exec(text);
+            if (progress) {
+              const downloaded = Number(progress[1]) / 1024 / 1024;
+              const total = Number(progress[2]) / 1024 / 1024;
+              text = `Downloading data... (${downloaded.toFixed(1)}/${total.toFixed(1)} MB)`;
+            }
             loadingMessage.innerHTML = text;
           } else {
             loadingMessage.innerHTML = "Starting...";
@@ -284,6 +308,9 @@
                   ")"
               : "All downloads complete."
           );
+        },
+        locateFile: function (path) {
+          return new URL(path, window.location.href).href;
         },
       };
       Module.setStatus("Downloading...");

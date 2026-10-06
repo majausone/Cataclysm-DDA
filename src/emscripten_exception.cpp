@@ -1,4 +1,4 @@
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
 #include <emscripten/bind.h>
 
 std::string getExceptionMessage( intptr_t exceptionPtr )

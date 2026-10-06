@@ -14,7 +14,7 @@
 #include <type_traits>
 #include <vector>
 
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 #endif
 
@@ -60,7 +60,7 @@ static const std::array invalid_names = {
 
 static void setFsNeedsSync()
 {
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
     EM_ASM( window.setFsNeedsSync(); );
 #endif
 }

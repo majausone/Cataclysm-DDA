@@ -17,7 +17,7 @@
 #include <optional>
 #include <string>
 
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 #endif
 
@@ -467,7 +467,7 @@ void main_menu::init_strings()
     vMenuItems.emplace_back( pgettext( "Main Menu", "Se<t|T>tings" ) );
     vMenuItems.emplace_back( pgettext( "Main Menu", "H<e|E|?>lp" ) );
     vMenuItems.emplace_back( pgettext( "Main Menu", "<C|c>redits" ) );
-#if !defined(EMSCRIPTEN)
+#if !defined(__EMSCRIPTEN__)
     vMenuItems.emplace_back( pgettext( "Main Menu", "<Q|q>uit" ) );
 #endif
 
@@ -672,7 +672,7 @@ bool main_menu::opening_screen()
         }
     }
 
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
     EM_ASM( window.dispatchEvent( new Event( 'menuready' ) ); );
 #endif
 
@@ -765,7 +765,7 @@ bool main_menu::opening_screen()
 
         // also check special keys
         if( action == "QUIT" ) {
-#if !defined(EMSCRIPTEN)
+#if !defined(__EMSCRIPTEN__)
             if( query_yn( _( "Really quit?" ) ) ) {
                 return false;
             }

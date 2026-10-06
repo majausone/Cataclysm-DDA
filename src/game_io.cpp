@@ -27,6 +27,10 @@
 #include <utility>
 #include <vector>
 
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
+
 #include "achievement.h"
 #include "auto_note.h"
 #include "auto_pickup.h"
@@ -770,7 +774,7 @@ bool game::save()
                 fout.imbue( std::locale::classic() );
                 fout << total_time_played.count();
             } );
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
             // This will allow the window to be closed without a prompt, until do_turn()
             // is called.
             EM_ASM( window.game_unsaved = false; );

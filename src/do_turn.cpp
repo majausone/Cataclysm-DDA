@@ -1,6 +1,6 @@
 #include "do_turn.h"
 
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 #endif
 
@@ -795,7 +795,7 @@ bool game::do_turn()
     u.power_balance = u.get_power_level() - u.power_prev_turn;
     u.power_prev_turn = u.get_power_level();
 
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
     // This will cause a prompt to be shown if the window is closed, until the
     // game is saved.
     EM_ASM( window.game_unsaved = true; );

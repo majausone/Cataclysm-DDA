@@ -12,7 +12,7 @@
 #include "cursesdef.h"
 #include "point.h"
 
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 #endif
 
@@ -513,7 +513,7 @@ void ui_adaptor::redraw_invalidated( )
             }
         }
     } while( restart_redrawing );
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
     emscripten_sleep( 1 );
 #endif
 
