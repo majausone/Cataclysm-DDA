@@ -17,7 +17,7 @@
 #include "type_id.h"
 #include "ui_manager.h"
 
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 #endif
 
@@ -409,7 +409,7 @@ void mostrar_estado()
 } // namespace realtime
 
 // ------------------------------------------------------------------ para la versión web (JS)
-#if defined(EMSCRIPTEN)
+#if defined(__EMSCRIPTEN__)
 extern "C" {
     EMSCRIPTEN_KEEPALIVE int cdda_rt_velocidad()
     {
