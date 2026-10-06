@@ -151,8 +151,10 @@
   // veces se componen mal, con el fondo negro o fuera de sitio)
   const lienzoTrabajo = document.createElement('canvas');
   const VACIO = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  // (lo que no tiene dibujo en el tileset: una caja, mejor que un hueco vacío)
+  const GENERICO = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M7 11 16 6l9 5v10l-9 5-9-5z" fill="#3a3f4a" stroke="#8b93a3" stroke-width="1.5" stroke-linejoin="round"/><path d="M7 11l9 5 9-5M16 16v10" fill="none" stroke="#8b93a3" stroke-width="1.5" stroke-linejoin="round"/></svg>');
   function pintarIcono(img, par) {
-    if (!par || (par[0] < 0 && par[1] < 0)) { img.dataset.sin = '1'; return; }
+    if (!par || (par[0] < 0 && par[1] < 0)) { img.dataset.sin = '1'; img.src = GENERICO; return; }
     const w = +img.width, h = +img.height;
     lienzoTrabajo.width = w; lienzoTrabajo.height = h;
     const ctx = lienzoTrabajo.getContext('2d');

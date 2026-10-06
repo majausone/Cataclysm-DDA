@@ -15,7 +15,17 @@ const errores = [];
 p.on('pageerror', (e) => errores.push(e.message.slice(0, 300)));
 let paso = 0, mal = 0;
 const foto = async (n) => { await p.screenshot({ path: `${FOTOS}/${String(++paso).padStart(2, '0')}-${n}.png` }); };
-const esperar = (ms) => p.waitForTimeout(ms);
+// (mientras espera, si el juego pregunta algo en nuestra ventana, se contesta como una persona: la primera opción,
+// con su foto la primera vez que sale cada pregunta)
+const preguntasVistas = new Set();
+async function contestar() {
+  const l = await p.evaluate(() => (window.interfazCdda ? window.interfazCdda.json('cdda_ui_lista') : null)).catch(() => null);
+  if (!l || !(await p.locator('#ventana-lista:not(.oculto)').count())) return;
+  const clave = l.titulo || l.texto || '';
+  if (!preguntasVistas.has(clave)) { preguntasVistas.add(clave); await p.screenshot({ path: `${FOTOS}/${String(++paso).padStart(2, '0')}-pregunta.png` }); console.log('PREGUNTA', JSON.stringify(clave), '->', JSON.stringify(l.opciones[0] && l.opciones[0].texto)); }
+  await p.locator('#ventana-lista button:not(.cerrar):not([disabled])').first().click().catch(() => {});
+}
+const esperar = async (ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { await p.waitForTimeout(Math.min(400, ms - (Date.now() - t0))); await contestar(); } };
 const comprobar = (n, ok, info = {}) => { if (!ok) mal++; console.log(ok ? 'OK ' : 'MAL', n, JSON.stringify(info)); };
 const estado = () => p.evaluate(() => { try { const e = window.interfazCdda.json('cdda_ui_estado'); return e && { hora: e.hora, pos: e.pos, enCamino: e.enCamino, actividad: e.actividad && e.actividad.id, ventanas: wasmExports.cdda_ventanas(), turno: wasmExports.cdda_turno(), avisos: wasmExports.cdda_avisos ? wasmExports.cdda_avisos() : 0 }; } catch { return null; } });
 const clic = async (sel) => { const l = p.locator(sel).first(); await l.click({ timeout: 5000 }); };
