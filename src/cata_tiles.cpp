@@ -2221,6 +2221,44 @@ point cata_tiles::player_to_tile( const point_bub_ms &pos ) const
     }
 }
 
+std::pair<int, int> cata_tiles::sprite_interfaz( const std::string &id, TILE_CATEGORY category,
+        const std::string &variant )
+{
+    if( !tileset_ptr ) {
+        return { -1, -1 };
+    }
+    std::optional<tile_lookup_res> res = find_tile_looks_like( id, category, variant );
+    if( !res ) {
+        return { -1, -1 };
+    }
+    const tile_type &t = res->tile();
+    const auto primero = []( const weighted_int_list<std::vector<int>> &lista ) {
+        for( const auto &w : lista ) {
+            if( !w.first.empty() ) {
+                return w.first.front();
+            }
+        }
+        return -1;
+    };
+    return { primero( t.fg ), primero( t.bg ) };
+}
+
+const std::vector<atlas_replay_descriptor> &cata_tiles::atlas_interfaz() const
+{
+    static const std::vector<atlas_replay_descriptor> vacio;
+    return tileset_ptr ? tileset_ptr->get_atlas_descriptors() : vacio;
+}
+
+int cata_tiles::ancho_sprite_interfaz() const
+{
+    return tileset_ptr ? tileset_ptr->get_tile_width() : 0;
+}
+
+int cata_tiles::alto_sprite_interfaz() const
+{
+    return tileset_ptr ? tileset_ptr->get_tile_height() : 0;
+}
+
 point cata_tiles::player_to_screen( const point_bub_ms &pos ) const
 {
     const point colrow = player_to_tile( pos );
