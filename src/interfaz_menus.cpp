@@ -361,7 +361,10 @@ std::string receta_json( const std::string &id )
     j.member( "competencias", remove_color_tags( r.required_proficiencies_string( &u ) ) );
     j.member( "puede", av.can_craft_recipe );
     j.member( "tieneHabilidad", av.has_all_skills );
-    j.member( "descripcion", remove_color_tags( r.result()->description.translated() ) );
+    // (las prácticas no hacen ningún objeto: su descripción es la de la receta)
+    j.member( "descripcion", remove_color_tags( r.is_practice() || !r.description.empty() ?
+                                                r.description.translated() : r.result()->description.translated() ) );
+    j.member( "practica", r.is_practice() );
     const requirement_data &req = r.simple_requirements();
     // herramientas: cada grupo, sus alternativas (vale una)
     j.member( "herramientas" );
