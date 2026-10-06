@@ -266,6 +266,8 @@ std::optional<std::string> accion_pendiente;
 double ms_espera_jugador = 0.0;
 std::chrono::steady_clock::time_point inicio_espera_jugador;
 bool esperando_jugador = false;
+// (el juego está parado esperando el siguiente tic, en esperar_turno: un sitio seguro para repintar desde fuera)
+bool en_espera_de_tic = false;
 bool velocidad_de_opciones = false;
 
 // ¿le toca al jugador decidir en este turno?  (si no, el turno pasa solo: actividad, sueño, moviéndose...)
@@ -423,7 +425,9 @@ void esperar_turno()
         const int t = falta < 0 ? 100 : static_cast<int>( std::clamp<int64_t>( falta, 1,
                       moviendo ? hasta_imagen : 50 ) );
         input_context ctxt = get_default_mode_input_context();
+        en_espera_de_tic = true;
         const std::string action = ctxt.handle_input( t );
+        en_espera_de_tic = false;
         if( action == "TIMEOUT" ) {
             // (las órdenes de la interfaz web, también mientras espera)
             interfaz::turno();
@@ -533,6 +537,19 @@ void mantener_direccion( int dx, int dy )
 {
     dir_x = std::clamp( dx, -1, 1 );
     dir_y = std::clamp( dy, -1, 1 );
+}
+
+bool pintar_si_toca()
+{
+    // (solo parado en una espera, la del tic o la de la tecla del jugador, nunca a mitad de un tic ni de un menú)
+    if( !activo() || test_mode || ( !en_espera_de_tic && !esperando_jugador ) ) {
+        return false;
+    }
+    if( !suave::hay_movimiento() || suave::ms_desde_imagen() < 12 ) {
+        return false;
+    }
+    repintar();
+    return true;
 }
 
 double ms_imagen()
@@ -664,6 +681,13 @@ extern "C" {
     EMSCRIPTEN_KEEPALIVE double cdda_rt_ms_turno()
     {
         return realtime::el_reloj().ms_turno_medio;
+    }
+    // en la web, la página lo llama en cada fotograma del navegador (requestAnimationFrame): si el juego está parado
+    // esperando y algo se mueve, repinta. Así el movimiento suave va al ritmo del navegador, y no al de las esperas
+    // del juego, que en el navegador duran más de lo pedido (salía una imagen por tic)
+    EMSCRIPTEN_KEEPALIVE int cdda_rt_pintar()
+    {
+        return realtime::pintar_si_toca() ? 1 : 0;
     }
     // lo que tarda en pintarse una imagen del mapa (ms, media)
     EMSCRIPTEN_KEEPALIVE double cdda_rt_ms_imagen()

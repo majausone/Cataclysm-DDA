@@ -128,6 +128,8 @@ std::string tomar_accion_pendiente();
 void mantener_direccion( int dx, int dy );
 // la acción de andar hacia la dirección mantenida ("" si no hay)
 std::string accion_direccion();
+// si el juego está parado esperando y algo se mueve, repinta ya (la página lo llama en cada fotograma)
+bool pintar_si_toca();
 // lo que tarda en pintarse una imagen (ms, media móvil)
 double ms_imagen();
 // la dirección mantenida (de -1 a 1; 0, 0 si no hay)
