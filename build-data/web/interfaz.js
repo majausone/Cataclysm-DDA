@@ -141,20 +141,26 @@
     ctx.drawImage(im.bmp, sx, sy, im.ancho, im.alto, (w - dw) / 2, (h - dh) / 2, dw, dh);
     return true;
   }
-  function pintarIcono(lienzo, par) {
-    const ctx = lienzo.getContext('2d');
+  // (cada icono es una imagen, pintada una vez en un lienzo de trabajo: cientos de lienzos pequeños en la página a
+  // veces se componen mal, con el fondo negro o fuera de sitio)
+  const lienzoTrabajo = document.createElement('canvas');
+  const VACIO = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  function pintarIcono(img, par) {
+    if (!par || (par[0] < 0 && par[1] < 0)) { img.dataset.sin = '1'; return; }
+    const w = +img.width, h = +img.height;
+    lienzoTrabajo.width = w; lienzoTrabajo.height = h;
+    const ctx = lienzoTrabajo.getContext('2d');
     ctx.imageSmoothingEnabled = false;
-    ctx.clearRect(0, 0, lienzo.width, lienzo.height);
-    if (!par || (par[0] < 0 && par[1] < 0)) { lienzo.dataset.sin = '1'; return; }
-    pintarSprite(ctx, par[1], lienzo.width, lienzo.height);
-    pintarSprite(ctx, par[0], lienzo.width, lienzo.height);
+    ctx.clearRect(0, 0, w, h);
+    pintarSprite(ctx, par[1], w, h);
+    pintarSprite(ctx, par[0], w, h);
+    img.src = lienzoTrabajo.toDataURL();
   }
-  // un icono (lienzo) para una cosa del juego; se pinta en cuanto se sepa su sprite
+  // un icono (imagen) para una cosa del juego; se pinta en cuanto se sepa su sprite
   function icono(id, cat = 'item', variante = '', tam = 32) {
-    const c = document.createElement('canvas');
+    const c = document.createElement('img');
     c.className = 'icono'; c.width = tam; c.height = tam; c.style.width = tam + 'px'; c.style.height = tam + 'px';
-    // (lienzo por software: los acelerados, tan pequeños y tantos, a veces se componen mal (fondo negro o fuera de sitio))
-    c.getContext('2d', { willReadFrequently: true });
+    c.src = VACIO; c.draggable = false; c.alt = '';
     if (!id) return c;
     const clave = `${id}|${cat}|${variante || ''}`;
     if (sprites.has(clave) && sprites.get(clave)) { if (atlas.listo) pintarIcono(c, sprites.get(clave)); else apuntar(clave, c); return c; }
@@ -909,6 +915,8 @@
   const ventanaLista = crear(`<div id="ventana-lista" class="ventana ui oculto"><div class="cabeza"><i class="fa-solid fa-circle-question"></i><span class="titulo"></span><button class="cerrar"><i class="fa-solid fa-xmark"></i></button></div><div class="cuerpo"></div></div>`);
   $('.cerrar', ventanaLista).onclick = () => ex().cdda_ui_elegir(-1);
   let firmaLista = null;
+  // (en las preguntas, la tecla va entre corchetes, «[Y] Sí», «[N]o»: en un botón sobra)
+  const sinTecla = (t, pregunta) => (pregunta ? (/\[.\]\S/.test(t) ? t.replace(/\[(.)\]/, '$1') : t.replace(/^\[[^\]]+\]\s*/, '')) : t);
   const listaAbierta = () => !ventanaLista.classList.contains('oculto');
   function pintarLista() {
     const l = ex() && ex().cdda_ui_lista ? json('cdda_ui_lista') : null;
@@ -922,7 +930,7 @@
     if (l.texto) cu.appendChild(crear(`<div class="texto-lista">${esc(limpio(l.texto)).replace(/\n/g, '<br>')}</div>`));
     const caja = crear(`<div class="${l.pregunta ? 'botones-pregunta' : 'opciones-lista'}"></div>`);
     l.opciones.forEach((o, i) => {
-      const b = crear(`<button class="${l.pregunta ? 'boton' + (i === 0 ? ' principal' : '') : 'opcion-lista'}" ${o.activa ? '' : 'disabled'}>${o.tecla && !l.pregunta ? `<kbd>${esc(o.tecla)}</kbd>` : ''}<span class="nombre">${esc(limpio(o.texto))}${o.desc ? `<small>${esc(limpio(o.desc))}</small>` : ''}</span>${o.extra ? `<small class="extra">${esc(limpio(o.extra))}</small>` : ''}</button>`);
+      const b = crear(`<button class="${l.pregunta ? 'boton' + (i === 0 ? ' principal' : '') : 'opcion-lista'}" ${o.activa ? '' : 'disabled'}>${o.tecla && !l.pregunta ? `<kbd>${esc(o.tecla)}</kbd>` : ''}<span class="nombre">${esc(sinTecla(limpio(o.texto), l.pregunta))}${o.desc ? `<small>${esc(limpio(o.desc))}</small>` : ''}</span>${o.extra ? `<small class="extra">${esc(limpio(o.extra))}</small>` : ''}</button>`);
       b.onclick = () => ex().cdda_ui_elegir(i);
       caja.appendChild(b);
     });

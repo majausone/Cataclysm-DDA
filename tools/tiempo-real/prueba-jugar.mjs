@@ -107,9 +107,11 @@ await intentar('inventario', async () => {
   await foto('inventario');
   const huecos = await p.locator('#panel .hueco .marco-icono:not(.vacio)').count();
   comprobar('el muñequito tiene cosas puestas', huecos > 0, { huecos });
-  const iconos = await p.evaluate(() => [...document.querySelectorAll('#panel canvas.icono')].filter((c) => !c.dataset.sin).length);
+  const iconos = await p.evaluate(() => [...document.querySelectorAll('#panel .icono')].filter((c) => !c.dataset.sin).length);
   comprobar('salen iconos (sprites del juego)', iconos > 0, { iconos });
-  const enBolsa = p.locator('#panel .casilla-obj').first();
+  // (algo de los bolsillos; si no lleva nada en ellos, algo de lo puesto)
+  let enBolsa = p.locator('#panel .casilla-obj').first();
+  if (!(await enBolsa.count())) enBolsa = p.locator('#panel .hueco .marco-icono:not(.vacio)').first();
   if (await enBolsa.count()) {
     await enBolsa.click();
     await esperar(600);
@@ -140,11 +142,15 @@ await intentar('fabricar', async () => {
     await foto('receta');
     const boton = p.locator('#panel .columna.detalle .boton.principal');
     if (await boton.isEnabled()) {
+      const antes = await p.evaluate(() => JSON.stringify(window.interfazCdda.json('cdda_ui_inventario')).length);
       await boton.click();
-      await esperar(2500);
+      await esperar(1200);
       await foto('fabricando');
       const e = await estado();
-      comprobar('al fabricar hay una actividad con su barra', !!(e && e.actividad), e || {});
+      const barra = await p.locator('#actividad:not(.oculto)').count();
+      const despues = await p.evaluate(() => JSON.stringify(window.interfazCdda.json('cdda_ui_inventario')).length);
+      // (lo corto se acaba en un par de segundos: vale ver la barra o que ya haya salido)
+      comprobar('al fabricar sale la barra (o ya está hecho)', (e && e.actividad && barra > 0) || despues !== antes, { actividad: e && e.actividad, barra });
     }
   } else {
     const otra = p.locator('#panel .columna.lista .fila-icono').first();
@@ -199,7 +205,16 @@ await intentar('guardar, morir y cargar', async () => {
   await p.keyboard.press('Escape'); await esperar(500);
   await clic('#ventana-opciones .guardar'); await esperar(4000);
   await p.evaluate(() => wasmExports.cdda_sim_morir());
-  await p.waitForSelector('#inicio:not(.oculto)', { timeout: 120000 });
+  // (al morir el juego pregunta, «¿abrir el diario por última vez?»...: se contesta lo último, «No», en nuestra ventana)
+  let preguntas = 0;
+  for (let t0 = Date.now(); Date.now() - t0 < 120000 && !(await p.locator('#inicio:not(.oculto)').count());) {
+    if (await p.locator('#ventana-lista:not(.oculto)').count()) {
+      if (!preguntas++) await foto('pregunta-al-morir');
+      await p.locator('#ventana-lista button:not(.cerrar):not([disabled])').last().click();
+    }
+    await esperar(700);
+  }
+  await p.waitForSelector('#inicio:not(.oculto)', { timeout: 5000 });
   await esperar(1500);
   await foto('muerte');
   comprobar('sale nuestra pantalla de muerte', await p.locator('#inicio .muerte').count() > 0);
