@@ -235,6 +235,8 @@
   .columna.lista { border-right: 0; border-bottom: 1px solid var(--borde); max-height: 45%; }
   .muneco { transform: scale(0.85); transform-origin: top center; }
   #botonera { top: auto; bottom: 14px; }
+  /* (en el móvil, los avisos abajo, encima de los botones, para no tapar la hora) */
+  #avisos { top: auto; bottom: 86px; width: calc(100vw - 24px); }
 }
 
 /* dónde construir: las casillas de alrededor */

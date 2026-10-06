@@ -2336,18 +2336,27 @@ void parse_tags( std::string &phrase, const_talker const &u, const_talker const 
 {
     // (la traducción al español cambió la etiqueta <punc...> por <punt...> en algunas frases, «Adios<punt.!>»:
     // se devuelve a la de verdad antes de expandirla; si no, salía el aviso «Bad tag»)
-    // (y dentro de ellas, «…» como «...»: «<punc...!>» por «<punc…!>»)
-    for( size_t i = phrase.find( "<punt" ); i != std::string::npos; i = phrase.find( "<punt", i ) ) {
-        phrase.replace( i, 5, "<punc" );
-    }
-    for( size_t i = phrase.find( "<punc" ); i != std::string::npos; i = phrase.find( "<punc", i + 1 ) ) {
-        const size_t fin = phrase.find( '>', i );
-        const size_t puntos = phrase.find( "...", i );
-        if( fin != std::string::npos && puntos != std::string::npos && puntos < fin ) {
-            phrase.replace( puntos, 3, "…" );
+    // (y dentro de ellas, «…» como «...»: «<punc...!>» por «<punc…!>»). También después de expandir: los
+    // trozos que se expanden traen las suyas
+    const auto arreglar_punc = []( std::string & frase ) {
+        for( size_t i = frase.find( "<punt" ); i != std::string::npos; i = frase.find( "<punt", i ) ) {
+            frase.replace( i, 5, "<punc" );
         }
-    }
+        for( size_t i = frase.find( "<punc" ); i != std::string::npos; i = frase.find( "<punc", i + 1 ) ) {
+            const size_t fin = frase.find( '>', i );
+            // («<punc....>» es «<punc.…>»: un punto y los suspensivos)
+            const size_t cuatro = frase.find( "....", i );
+            const size_t puntos = frase.find( "...", i );
+            if( fin != std::string::npos && cuatro != std::string::npos && cuatro < fin ) {
+                frase.replace( cuatro, 4, ".…" );
+            } else if( fin != std::string::npos && puntos != std::string::npos && puntos < fin ) {
+                frase.replace( puntos, 3, "…" );
+            }
+        }
+    };
+    arreglar_punc( phrase );
     phrase = SNIPPET.expand( phrase );
+    arreglar_punc( phrase );
 
     const Character *u_chr = u.get_const_character();
     const Character *me_chr = me.get_const_character();
@@ -2356,6 +2365,8 @@ void parse_tags( std::string &phrase, const_talker const &u, const_talker const 
     size_t fa_;
     std::string tag;
     do {
+        // (lo que se acaba de expandir en la vuelta anterior también puede traer la etiqueta mal traducida)
+        arreglar_punc( phrase );
         fa = phrase.find( '<' );
         fb = phrase.find( '>' );
         // Skip the <color_XXX> and </color> tag

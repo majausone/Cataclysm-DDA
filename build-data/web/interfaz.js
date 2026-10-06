@@ -233,6 +233,8 @@
       <div class="hud-abajo plegable"><div class="mini-cuerpo"></div><div class="mano"></div></div>
     </div>`);
   $('.plegar', hud).onclick = () => hud.classList.toggle('plegado');
+  // (en una pantalla estrecha empieza plegado: la hora y el tiempo; se despliega con la flecha)
+  if (window.innerWidth <= 760) hud.classList.add('plegado');
   function textoNecesidad(n) {
     const t = limpio(n.texto).trim();
     if (n.id === 'animo') return { ':D': T('bien_animo'), ':)': T('bien_animo'), ':|': T('bien_animo') }[t] || t || T('bien_animo');
@@ -487,7 +489,7 @@
   const CATEGORIAS = { CC_FOOD: ['fa-utensils', 'Comida', 'Food'], CC_DRINK: ['fa-mug-hot', 'Bebida', 'Drinks'], CC_CHEM: ['fa-flask', 'Química', 'Chemistry'],
     CC_ELECTRONIC: ['fa-microchip', 'Electrónica', 'Electronics'], CC_ARMOR: ['fa-shirt', 'Ropa', 'Clothing'], CC_WEAPON: ['fa-khanda', 'Armas', 'Weapons'],
     CC_AMMO: ['fa-bullseye', 'Munición', 'Ammo'], CC_OTHER: ['fa-box', 'Otros', 'Other'], CC_ANIMALS: ['fa-paw', 'Animales', 'Animals'],
-    CC_BUILDING: ['fa-house', 'Construcción', 'Building'], CC_APPLIANCE: ['fa-plug', 'Aparatos', 'Appliances'], CC_PRACTICE: ['fa-graduation-cap', 'Práctica', 'Practice'],
+    CC_BUILDING: ['fa-house', 'Construcción', 'Building'], CC_APPLIANCE: ['fa-plug', 'Aparatos', 'Appliances'], CC_PRACTICE: ['fa-graduation-cap', 'Práctica', 'Practice'], CC_MUSIC: ['fa-music', 'Música', 'Music'],
     'CC_*': ['fa-star', 'Varias', 'Misc'] };
   const nombreCat = (k) => { const c = CATEGORIAS[k]; return c ? c[idioma === 'es' ? 1 : 2] : k.replace('CC_', ''); };
   let recetaElegida = null, catFabricar = 'todas';
