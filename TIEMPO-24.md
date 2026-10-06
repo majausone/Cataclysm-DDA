@@ -58,7 +58,7 @@ en las dudas se ha hecho como allí.
 
 | Proceso | Reloj | Cómo |
 |---|---|---|
-| Moverse, atacar, huir | real | puntos de movimiento repartidos entre los 24 tics |
+| Moverse, atacar, huir | real | su velocidad entera una vez por segundo real, cada uno en su tic (repartidos entre los 24 para que no se muevan todos a la vez). No 1/24 en cada tic: lo que en el juego acaba el turno (hablar, esperar) les costaría solo 1/24 de segundo |
 | Ataques especiales (sus esperas) | real | la espera baja una vez cada 24 tics |
 | NPC en una actividad larga (fabricar, construir, dormir) | mundo | velocidad entera por tic |
 | NPC viajando por el mapa grande (fuera de la vista) | mundo | por tic (como estaba) |
