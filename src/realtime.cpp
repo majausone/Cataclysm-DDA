@@ -409,7 +409,9 @@ void esperar_turno()
         // (a más de x10, lo que falta hasta el plazo, si es poco, se espera sin ceder el control: cada espera del
         // teclado se lleva al menos un fotograma del navegador y con turnos de 14 ms se perdía uno de cada dos;
         // el teclado se sigue mirando cada 30 ms, en realtime::saltar_espera)
-        if( falta >= 0 && falta <= 20 && multiplicador( r.vel() ) > 10 ) {
+        // (solo con tics de menos de 33 ms, más de 30 por segundo: a 24 por segundo, esperar así la mitad de cada tic
+        // dejaba al navegador sin pintar ni leer el teclado, y salían 25 imágenes por segundo en vez de 60)
+        if( falta >= 0 && falta <= 20 && multiplicador( r.vel() ) > 30 ) {
             esperar_sin_ceder( r );
             continue;
         }
