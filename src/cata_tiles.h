@@ -1285,6 +1285,9 @@ class cata_tiles
         std::pair<int, int> sprite_interfaz( const std::string &id, TILE_CATEGORY category,
                                              const std::string &variant );
         const std::vector<atlas_replay_descriptor> &atlas_interfaz() const;
+        // (el mapa del mundo) el sprite de una casilla del mapa grande como la pinta el juego: delante, detrás (o -1) y
+        // cuartos de vuelta que hay que girarlo
+        std::array<int, 3> sprite_mapa_interfaz( const tripoint_abs_omt &omp );
         int ancho_sprite_interfaz() const;
         int alto_sprite_interfaz() const;
 

@@ -19,6 +19,7 @@
 #include "avatar.h"
 #include "bodypart.h"
 #include "calendar.h"
+#include "cached_options.h"
 #include "cata_tiles.h"
 #include "character.h"
 #include "color.h"
@@ -230,6 +231,26 @@ std::string atlas_json()
             j.end_object();
         }
         j.end_array();
+    }
+    // el del mapa del mundo (su propio tileset), si el juego lo usa
+    if( overmap_tilecontext && use_tiles_overmap ) {
+        j.member( "mapa" );
+        j.start_object();
+        j.member( "ancho", overmap_tilecontext->ancho_sprite_interfaz() );
+        j.member( "alto", overmap_tilecontext->alto_sprite_interfaz() );
+        j.member( "imagenes" );
+        j.start_array();
+        for( const atlas_replay_descriptor &a : overmap_tilecontext->atlas_interfaz() ) {
+            j.start_object();
+            j.member( "ruta", a.image_path_u8 );
+            j.member( "ancho", a.sprite_width );
+            j.member( "alto", a.sprite_height );
+            j.member( "desde", a.atlas_offset );
+            j.member( "cuantos", a.expected_tilecount );
+            j.end_object();
+        }
+        j.end_array();
+        j.end_object();
     }
 #endif
     j.end_object();
@@ -593,6 +614,15 @@ std::string mapa_json( int radio )
             j.write( t->get_name( visto ) );
             j.write( t->get_symbol( visto ) );
             j.write( color_de( t->get_color( visto ) ) );
+#if defined(TILES)
+            // (el dibujo del tileset del mapa: delante, detrás y giro)
+            if( overmap_tilecontext && use_tiles_overmap ) {
+                const std::array<int, 3> sp = overmap_tilecontext->sprite_mapa_interfaz( p );
+                j.write( sp[0] );
+                j.write( sp[1] );
+                j.write( sp[2] );
+            }
+#endif
             j.end_array();
         }
     }

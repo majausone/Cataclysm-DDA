@@ -71,6 +71,7 @@
 #include "npc.h"
 #include "npc_attack.h"
 #include "omdata.h"
+#include "overmapbuffer.h"
 #include "output.h"
 #include "overlay_ordering.h"
 #include "overmap.h"
@@ -2241,6 +2242,65 @@ std::pair<int, int> cata_tiles::sprite_interfaz( const std::string &id, TILE_CAT
         return -1;
     };
     return { primero( t.fg ), primero( t.bg ) };
+}
+
+std::array<int, 3> cata_tiles::sprite_mapa_interfaz( const tripoint_abs_omt &omp )
+{
+    std::array<int, 3> r = { -1, -1, 0 };
+    if( !tileset_ptr ) {
+        return r;
+    }
+    // (lo mismo que al pintar el mapa grande: su id, giro y pieza (las carreteras y ríos), siguiendo «looks_like»)
+    int rota = 0;
+    int subtile = -1;
+    std::string id;
+    TILE_CATEGORY cat = TILE_CATEGORY::OVERMAP_TERRAIN;
+    if( overmap_buffer.seen( omp ) == om_vision_level::unseen ) {
+        id = "unknown_terrain";
+    } else {
+        bool is_omt = false;
+        std::tie( id, is_omt ) = get_omt_id_rotation_and_subtile( omp, rota, subtile );
+        if( !is_omt ) {
+            cat = TILE_CATEGORY::OVERMAP_VISION_LEVEL;
+        }
+    }
+    std::optional<tile_lookup_res> res = find_tile_looks_like( id, cat, "" );
+    if( !res ) {
+        return r;
+    }
+    const tile_type *t = &res->tile();
+    if( subtile >= 0 && subtile < static_cast<int>( multitile_keys.size() ) && t->multitile ) {
+        const std::string &clave = multitile_keys[subtile];
+        if( std::find( t->available_subtiles.begin(), t->available_subtiles.end(),
+                       clave ) != t->available_subtiles.end() ) {
+            const std::string con_pieza = res->id() + "_" + clave;
+            if( std::optional<tile_lookup_res> pieza = find_tile_looks_like( con_pieza, cat, "" ) ) {
+                t = &pieza->tile();
+            }
+        }
+    }
+    if( !t->rotates ) {
+        rota = 0;
+    }
+    // (con varios sprites, uno por giro; con uno solo, se gira)
+    bool por_sprites = false;
+    const auto elegir = [rota]( const weighted_int_list<std::vector<int>> &lista, bool &varios ) {
+        for( const auto &w : lista ) {
+            if( !w.first.empty() ) {
+                if( w.first.size() > 1 ) {
+                    varios = true;
+                    return w.first[static_cast<size_t>( std::abs( rota ) ) % w.first.size()];
+                }
+                return w.first.front();
+            }
+        }
+        return -1;
+    };
+    bool nada = false;
+    r[0] = elegir( t->fg, por_sprites );
+    r[1] = elegir( t->bg, nada );
+    r[2] = por_sprites ? 0 : ( ( rota % 4 ) + 4 ) % 4;
+    return r;
 }
 
 const std::vector<atlas_replay_descriptor> &cata_tiles::atlas_interfaz() const
