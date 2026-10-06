@@ -128,6 +128,8 @@ std::string tomar_accion_pendiente();
 void mantener_direccion( int dx, int dy );
 // la acción de andar hacia la dirección mantenida ("" si no hay)
 std::string accion_direccion();
+// lo que tarda en pintarse una imagen (ms, media móvil)
+double ms_imagen();
 // la dirección mantenida (de -1 a 1; 0, 0 si no hay)
 int direccion_x();
 int direccion_y();

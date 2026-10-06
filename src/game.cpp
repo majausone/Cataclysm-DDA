@@ -2903,6 +2903,9 @@ bool game::is_game_over()
         // de muerte)
         if( interfaz::activa() ) {
             interfaz::al_morir();
+            // (lo que enviaría la lápida: la muerte, sin últimas palabras; sin él, el final lee un «void»)
+            get_event_bus().send<event_type::game_avatar_death>( u.getID(), u.name, uquit == QUIT_SUICIDE,
+                    std::string() );
         } else {
             bury_screen();
         }

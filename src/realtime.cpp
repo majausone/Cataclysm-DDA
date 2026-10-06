@@ -304,14 +304,20 @@ void esperar_sin_ceder( const reloj &r )
     }
 }
 
+// lo que tarda en pintarse una imagen (media móvil, ms): para medir si da para 60 por segundo
+double ms_imagen_medio = 0.0;
+
 void repintar()
 {
     if( test_mode ) {
         return;
     }
+    const auto t0 = std::chrono::steady_clock::now();
     g->invalidate_main_ui_adaptor();
     ui_manager::redraw();
     refresh_display();
+    const double ms = std::chrono::duration<double, std::milli>( std::chrono::steady_clock::now() - t0 ).count();
+    ms_imagen_medio = ms_imagen_medio * 0.9 + ms * 0.1;
 }
 } // namespace
 
@@ -527,6 +533,11 @@ void mantener_direccion( int dx, int dy )
     dir_y = std::clamp( dy, -1, 1 );
 }
 
+double ms_imagen()
+{
+    return ms_imagen_medio;
+}
+
 int direccion_x()
 {
     return dir_x;
@@ -651,6 +662,11 @@ extern "C" {
     EMSCRIPTEN_KEEPALIVE double cdda_rt_ms_turno()
     {
         return realtime::el_reloj().ms_turno_medio;
+    }
+    // lo que tarda en pintarse una imagen del mapa (ms, media)
+    EMSCRIPTEN_KEEPALIVE double cdda_rt_ms_imagen()
+    {
+        return realtime::ms_imagen();
     }
     EMSCRIPTEN_KEEPALIVE int cdda_rt_retrasado()
     {
