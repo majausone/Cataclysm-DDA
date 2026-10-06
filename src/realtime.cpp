@@ -395,7 +395,6 @@ void esperar_turno()
     reloj &r = el_reloj();
     r.fin_de_calculo( ms_espera_jugador );
     ms_espera_jugador = 0.0;
-    auto ultimo_repintado = std::chrono::steady_clock::now();
     for( ;; ) {
         const bool decide = jugador_decide();
         // en pausa, si decide el jugador, es el juego de siempre: espera su tecla en su turno
@@ -418,9 +417,9 @@ void esperar_turno()
         // (mientras algo se mueve, se espera solo hasta la siguiente imagen: 16 ms desde la anterior, descontando lo
         // que tardó en pintarse; si se esperaran 16 ms enteros y luego se pintara, saldrían unas 30 por segundo)
         const bool moviendo = suave::hay_movimiento();
-        const int64_t desde_imagen = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                         std::chrono::steady_clock::now() - ultimo_repintado ).count();
-        const int64_t hasta_imagen = std::clamp<int64_t>( 16 - desde_imagen, 1, 16 );
+        // (desde la última imagen de verdad, la pintara el tic o esta espera: si se contara desde que empezó la
+        // espera, tras cada tic se perdían 15 ms y salía una imagen por tic)
+        const int64_t hasta_imagen = std::clamp<int64_t>( 16 - suave::ms_desde_imagen(), 1, 16 );
         const int t = falta < 0 ? 100 : static_cast<int>( std::clamp<int64_t>( falta, 1,
                       moviendo ? hasta_imagen : 50 ) );
         input_context ctxt = get_default_mode_input_context();
@@ -429,9 +428,7 @@ void esperar_turno()
             // (las órdenes de la interfaz web, también mientras espera)
             interfaz::turno();
             // (que se vea la velocidad y lo que pasa, de vez en cuando, mientras espera)
-            const auto ahora = std::chrono::steady_clock::now();
-            if( ahora - ultimo_repintado > std::chrono::milliseconds( suave::hay_movimiento() ? 15 : 250 ) ) {
-                ultimo_repintado = ahora;
+            if( suave::ms_desde_imagen() >= ( suave::hay_movimiento() ? 15 : 250 ) ) {
                 repintar();
             }
             continue;

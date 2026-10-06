@@ -2,6 +2,8 @@
 #ifndef CATA_SRC_SUAVE_H
 #define CATA_SRC_SUAVE_H
 
+#include <cstdint>
+
 #include "coords_fwd.h"
 #include "point.h"
 
@@ -30,6 +32,8 @@ bool hay_movimiento();
 void nueva_imagen();
 // cuántas imágenes se han pintado
 int imagenes();
+// los milisegundos desde la última imagen pintada (la pinte quien la pinte: el tic o la espera)
+int64_t ms_desde_imagen();
 
 // --- girar a mitad de paso (con la tecla mantenida)
 // antes de dar un paso con la tecla mantenida: de dónde sale y los puntos de movimiento que tenía
