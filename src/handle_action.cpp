@@ -1,4 +1,5 @@
 #include "game.h" // IWYU pragma: associated
+#include "piloto.h"
 #include "realtime.h"
 
 #include <algorithm>
@@ -3347,6 +3348,12 @@ bool game::handle_action()
             mouse_target = mouse_pos;
 
             if( act == ACTION_SELECT ) {
+                // (piloto automático: un clic en alguien lo elige para los paneles de la página)
+                if( const Creature *cr = get_creature_tracker().creature_at( *mouse_target ) ) {
+                    if( const Character *ch = cr->as_character() ) {
+                        piloto::seleccionar( *ch );
+                    }
+                }
                 // Note: The following has the potential side effect of
                 // setting auto-move destination state in addition to setting
                 // act.

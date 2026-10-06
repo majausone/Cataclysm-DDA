@@ -81,6 +81,7 @@
 #include "monster.h"
 #include "mtype.h"
 #include "npc.h"
+#include "piloto.h"
 #include "npc_attack.h"
 #include "npc_decision_category.h"
 #include "npc_opinion.h"
@@ -2084,6 +2085,8 @@ void npc::move()
     }
 
     add_msg_debug( debugmode::DF_NPC, "%s chose action %s.", get_name(), npc_action_name( action ) );
+    piloto::apuntar( *this, npc_action_name( action ),
+                     bt_decision_goal.empty() ? std::string() : category_name( bt_decision_cat ), bt_decision_goal );
 
     if( !bt_decision_goal.empty() ) {
         decision_category cascade_cat = cascade_action_to_category( action );

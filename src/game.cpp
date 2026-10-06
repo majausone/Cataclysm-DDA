@@ -2580,6 +2580,7 @@ input_context get_default_mode_input_context()
         ctxt.register_action( "REALTIME_FASTER", to_translation( "Real time: faster" ) );
         ctxt.register_action( "REALTIME_SLOWER", to_translation( "Real time: slower" ) );
         ctxt.register_action( "REALTIME_PAUSE", to_translation( "Real time: pause / resume" ) );
+        ctxt.register_action( "AUTOPILOT", to_translation( "Autopilot (the NPC AI drives you)" ) );
         ctxt.register_action( "LEVEL_DOWN", to_translation( "Descend stairs" ) );
         ctxt.register_action( "LEVEL_UP", to_translation( "Ascend stairs" ) );
         ctxt.register_action( "center" );

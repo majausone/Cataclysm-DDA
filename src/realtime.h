@@ -94,7 +94,7 @@ void acaba_espera_jugador();
 // una acción del jugador pulsada mientras esperaba su turno: se hace en cuanto le toca
 bool hay_accion_pendiente();
 std::string tomar_accion_pendiente();
-// si es una de las acciones del tiempo real (velocidad, pausa), la hace y devuelve true
+// si es una de las acciones del tiempo real (velocidad, pausa, piloto automático), la hace y devuelve true
 bool manejar_accion( const std::string &action );
 
 // ¿repintar ahora?  Hasta x10, siempre; más rápido, como mucho cada 40 ms (25 por segundo, de sobra para verlo):
