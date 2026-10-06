@@ -95,7 +95,10 @@ void objeto( JsonOut &j, const item &it, bool con_id = true )
     }
     j.member( "tipo", it.typeId().str() );
     j.member( "variante", it.has_itype_variant() ? it.itype_variant().id : std::string() );
-    j.member( "nombre", remove_color_tags( it.tname( it.count_by_charges() ? it.charges : 1, false ) ) );
+    // (sin lo que lleva dentro, «> 2 objetos», ni los prefijos de estado: lo de dentro se ve en su bolsa)
+    j.member( "nombre", remove_color_tags( it.tname( it.count_by_charges() ? it.charges : 1,
+                                           tname::segment_bitset( tname::default_tname_bits & ~tname::tname_prefix_bits &
+                                           ~tname::tname_contents_bits ) ) ) );
     j.member( "cantidad", it.count_by_charges() ? 1 : static_cast<int>( it.count() ) );
     j.member( "cargas", it.count_by_charges() ? it.charges : 0 );
     j.member( "categoria", it.get_category_shallow().name_header() );
