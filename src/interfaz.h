@@ -70,6 +70,13 @@ std::string dialogo_json();
 // el mapa del mundo alrededor (radio en casillas del mapa grande)
 std::string mapa_json( int radio );
 bool hacer_menus( const std::string &a, JsonObject &o );
+// las listas del juego (uilist: «¿qué quieres hacer?»...): con la interfaz web las pinta la página. La que está
+// abierta (JSON, o null), y la elección (índice; -1 cancelar), que la página deja y la lista recoge mientras espera
+void abrir_lista( const std::string &json );
+void cerrar_lista();
+std::string lista_json();
+void elegir( int i );
+bool tomar_eleccion( int &i );
 void turno_menus();
 
 } // namespace interfaz

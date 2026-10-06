@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <memory>
+#include <sstream>
 
 #include "cached_options.h"
 #include "cata_imgui.h"
@@ -10,6 +11,8 @@
 #include "color.h"
 #include "imgui/imgui.h"
 #include "input_context.h"
+#include "interfaz.h"
+#include "json.h"
 #include "output.h"
 #include "string_formatter.h"
 #include "ui_manager.h"
@@ -287,6 +290,76 @@ query_popup::result query_popup::query_once()
 
     if( test_mode ) {
         return { false, "ERROR", {} };
+    }
+
+    // con la interfaz web, la pregunta la pinta la página (como las listas): sus botones, y se espera a que se
+    // pulse uno ahí o su tecla de siempre
+    if( interfaz::activa() ) {
+        input_context ctxt( category, pref_kbd_mode );
+        for( const query_popup::query_option &opt : options ) {
+            ctxt.register_action( opt.action );
+        }
+        if( cancel ) {
+            ctxt.register_action( "QUIT" );
+        }
+        if( anykey ) {
+            ctxt.register_action( "ANY_INPUT" );
+        }
+        std::ostringstream s;
+        JsonOut j( s );
+        j.start_object();
+        j.member( "pregunta", true );
+        j.member( "texto", remove_color_tags( text ) );
+        j.member( "cancelable", cancel );
+        j.member( "cualquiera", anykey );
+        j.member( "opciones" );
+        j.start_array();
+        for( const query_popup::query_option &opt : options ) {
+            j.start_object();
+            j.member( "texto", remove_color_tags( ctxt.get_desc( opt.action, ctxt.get_action_name( opt.action ),
+                                                  opt.filter ) ) );
+            j.member( "activa", true );
+            j.end_object();
+        }
+        j.end_array();
+        j.end_object();
+        interfaz::abrir_lista( s.str() );
+        result res;
+        res.wait_input = true;
+        while( res.wait_input ) {
+            res.action = ctxt.handle_input( 50 );
+            res.evt = ctxt.get_raw_input();
+            int i = 0;
+            if( interfaz::tomar_eleccion( i ) ) {
+                if( i >= 0 && i < static_cast<int>( options.size() ) ) {
+                    cur = i;
+                    res.action = options[i].action;
+                    res.wait_input = false;
+                } else if( cancel ) {
+                    res.action = "QUIT";
+                    res.wait_input = false;
+                } else if( anykey ) {
+                    res.action = "ANY_INPUT";
+                    res.wait_input = false;
+                }
+            } else if( res.evt.type == input_event_t::timeout || res.action == "TIMEOUT" ) {
+                continue;
+            } else if( cancel && res.action == "QUIT" ) {
+                res.wait_input = false;
+            } else if( anykey && res.evt.type != input_event_t::mouse ) {
+                res.wait_input = false;
+            } else {
+                for( size_t ind = 0; ind < options.size(); ++ind ) {
+                    if( res.action == options[ind].action && options[ind].filter( res.evt ) ) {
+                        cur = ind;
+                        res.wait_input = false;
+                        break;
+                    }
+                }
+            }
+        }
+        interfaz::cerrar_lista();
+        return res;
     }
 
     std::shared_ptr<query_popup_impl> impl = create_or_get_impl();

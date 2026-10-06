@@ -1049,6 +1049,17 @@ extern "C" {
         s = interfaz::robo_json( dx, dy );
         return s.c_str();
     }
+    // la lista del juego abierta (null si no hay), y elegir en ella (índice; -1 cancelar)
+    EMSCRIPTEN_KEEPALIVE const char *cdda_ui_lista()
+    {
+        static std::string s;
+        s = interfaz::lista_json();
+        return s.c_str();
+    }
+    EMSCRIPTEN_KEEPALIVE void cdda_ui_elegir( int i )
+    {
+        interfaz::elegir( i );
+    }
     EMSCRIPTEN_KEEPALIVE const char *cdda_ui_dialogo()
     {
         static std::string s;

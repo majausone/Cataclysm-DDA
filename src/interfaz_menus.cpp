@@ -443,6 +443,58 @@ std::string suelo_json( int dx, int dy )
     return s.str();
 }
 
+// --- las listas del juego
+namespace
+{
+// (una lista puede abrir otra: se apilan)
+std::vector<std::string> &listas()
+{
+    static std::vector<std::string> l;
+    return l;
+}
+std::optional<int> &eleccion()
+{
+    static std::optional<int> e;
+    return e;
+}
+} // namespace
+
+void abrir_lista( const std::string &json )
+{
+    listas().push_back( json );
+    eleccion().reset();
+}
+
+void cerrar_lista()
+{
+    if( !listas().empty() ) {
+        listas().pop_back();
+    }
+    eleccion().reset();
+}
+
+std::string lista_json()
+{
+    return listas().empty() ? std::string( "null" ) : listas().back();
+}
+
+void elegir( int i )
+{
+    if( !listas().empty() ) {
+        eleccion() = i;
+    }
+}
+
+bool tomar_eleccion( int &i )
+{
+    if( !eleccion() ) {
+        return false;
+    }
+    i = *eleccion();
+    eleccion().reset();
+    return true;
+}
+
 // --- robar
 std::string robo_json( int dx, int dy )
 {

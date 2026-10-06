@@ -407,9 +407,14 @@ void esperar_turno()
             esperar_sin_ceder( r );
             continue;
         }
-        // (mientras algo se mueve, la espera más corta: se repinta a 60 imágenes por segundo)
+        // (mientras algo se mueve, se espera solo hasta la siguiente imagen: 16 ms desde la anterior, descontando lo
+        // que tardó en pintarse; si se esperaran 16 ms enteros y luego se pintara, saldrían unas 30 por segundo)
+        const bool moviendo = suave::hay_movimiento();
+        const int64_t desde_imagen = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                         std::chrono::steady_clock::now() - ultimo_repintado ).count();
+        const int64_t hasta_imagen = std::clamp<int64_t>( 16 - desde_imagen, 1, 16 );
         const int t = falta < 0 ? 100 : static_cast<int>( std::clamp<int64_t>( falta, 1,
-                      suave::hay_movimiento() ? 16 : 50 ) );
+                      moviendo ? hasta_imagen : 50 ) );
         input_context ctxt = get_default_mode_input_context();
         const std::string action = ctxt.handle_input( t );
         if( action == "TIMEOUT" ) {
