@@ -1,4 +1,5 @@
 #include "character.h"
+#include "realtime.h"
 
 #include <algorithm>
 #include <array>
@@ -2295,9 +2296,11 @@ void Character::process_turn()
 
     suffer();
     recalc_speed_bonus();
-    //
+    // (tiempo real: repartidos entre los tics de un segundo real; en una actividad larga o durmiendo, enteros: van al
+    // reloj del mundo)
     if( !has_effect( effect_ridden ) ) {
-        moves += get_speed();
+        moves += realtime::puntos_por_tic( get_speed(), static_cast<bool>( activity ) ||
+                                           has_effect( effect_sleep ) );
     }
     // NPCs currently don't make any use of their scent, pointless to calculate it
     // TODO: make use of NPC scent.
@@ -6959,6 +6962,10 @@ void Character::process_effects()
     per_bonus_hardcoded = 0;
     //Human only effects
     for( std::pair<const efftype_id, std::map<bodypart_id, effect>> &elem : *effects ) {
+        // (tiempo real: lo que hace el sangrado, una vez por segundo real, como su duración)
+        if( elem.first == effect_bleed && !realtime::tic_de_accion( 20 ) ) {
+            continue;
+        }
         for( std::pair<const bodypart_id, effect> &_effect_it : elem.second ) {
             process_one_effect( _effect_it.second, false );
         }

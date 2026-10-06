@@ -18,15 +18,37 @@
 namespace realtime
 {
 
-enum class velocidad : int { pausa = 0, x1, x3, x10, x30, x72, maxima };
-constexpr int num_velocidades = 7;
+// Un tic es un turno del juego (1 segundo del mundo). Lo que se elige es cuánto dura un día: con el día normal van
+// 24 tics por segundo real (un día, una hora). Andar, pelear y lo demás de la acción va a paso real con cualquier
+// duración del día (ver factor_accion y TIEMPO-24.md); «máxima» (acelerar todo) lo acelera todo.
+enum class velocidad : int { pausa = 0, lento, normal, rapido, maxima };
+constexpr int num_velocidades = 5;
 
-// turnos por segundo real: 0 en pausa, -1 a la máxima
+// tics por segundo real: 0 en pausa, -1 a la máxima (lento 12, normal 24, rápido 48)
 int multiplicador( velocidad v );
-// "pausa", "x1", "x3"... "max"
+// lo que se pinta: "PAUSE", "Day 2h", "Day 1h", "Day 30m", "FAST"
 std::string nombre( velocidad v );
-// de una cadena de las opciones ("pausa", "1", "3"... "max") a la velocidad; x1 si no se conoce
+// de una cadena de las opciones ("pausa", "lento", "normal", "rapido", "max") a la velocidad; normal si no se conoce
 velocidad de_texto( const std::string &s );
+
+// --- los dos relojes (TIEMPO-24.md)
+// cuántos tics hay en un segundo real de la acción: los puntos de movimiento de cada criatura se reparten entre
+// ellos. 12, 24 o 48 según la duración del día (24 en pausa y a la máxima); 1 si el tiempo real no está activo (y en
+// las pruebas): entonces todo es como siempre
+int factor_accion();
+// los puntos de movimiento de este tic para quien tiene esa velocidad: su parte del reparto entre factor tics (sin
+// perder restos: en factor tics consecutivos, exactamente la velocidad). Al ritmo del mundo (en una actividad
+// larga, durmiendo), la velocidad entera
+int puntos_por_tic( int velocidad_criatura, bool al_ritmo_del_mundo );
+int reparto( int velocidad_criatura, int64_t tic, int factor );
+// ¿le toca en este tic a lo que va a velocidad real y se hace «una vez por turno» (fuego, humo, olor, vehículos,
+// efectos de combate...)? Una vez cada factor tics; fase, para repartirlos y que no caigan todos en el mismo tic
+bool tic_de_accion( int fase );
+bool es_tic_de_accion( int64_t tic, int fase, int factor );
+// de un intervalo de turnos, cuántos son de acción (para lo que se actualiza con lo que ha pasado: el aguante)
+int turnos_de_accion( int turnos, int fase );
+// ¿este efecto va a velocidad real? (aturdido, derribado, sangrado, agarrado, ardiendo...)
+bool efecto_real( const std::string &id );
 
 // El reloj, con el tiempo inyectable (para las pruebas). plazo: cuándo puede empezar el siguiente turno.
 class reloj
@@ -60,7 +82,7 @@ class reloj
 
     private:
         std::function<instante()> ahora_;
-        velocidad vel_ = velocidad::x1;
+        velocidad vel_ = velocidad::normal;
         bool hay_plazo_ = false;
         instante plazo_;
         instante ultimo_inicio_;

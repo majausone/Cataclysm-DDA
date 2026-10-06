@@ -36,20 +36,16 @@ int multiplicador( velocidad v )
     switch( v ) {
         case velocidad::pausa:
             return 0;
-        case velocidad::x1:
-            return 1;
-        case velocidad::x3:
-            return 3;
-        case velocidad::x10:
-            return 10;
-        case velocidad::x30:
-            return 30;
-        case velocidad::x72:
-            return 72;
+        case velocidad::lento:
+            return 12;
+        case velocidad::normal:
+            return 24;
+        case velocidad::rapido:
+            return 48;
         case velocidad::maxima:
             return -1;
     }
-    return 1;
+    return 24;
 }
 
 std::string nombre( velocidad v )
@@ -57,11 +53,16 @@ std::string nombre( velocidad v )
     switch( v ) {
         case velocidad::pausa:
             return _( "PAUSE" );
+        case velocidad::lento:
+            return _( "Day 2h" );
+        case velocidad::normal:
+            return _( "Day 1h" );
+        case velocidad::rapido:
+            return _( "Day 30m" );
         case velocidad::maxima:
-            return _( "MAX" );
-        default:
-            return "x" + std::to_string( multiplicador( v ) );
+            return _( "FAST" );
     }
+    return "";
 }
 
 velocidad de_texto( const std::string &s )
@@ -69,16 +70,75 @@ velocidad de_texto( const std::string &s )
     if( s == "pausa" || s == "pause" ) {
         return velocidad::pausa;
     }
+    if( s == "lento" ) {
+        return velocidad::lento;
+    }
+    if( s == "rapido" ) {
+        return velocidad::rapido;
+    }
     if( s == "max" ) {
         return velocidad::maxima;
     }
-    for( int i = 1; i < num_velocidades - 1; i++ ) {
-        const velocidad v = static_cast<velocidad>( i );
-        if( s == std::to_string( multiplicador( v ) ) ) {
-            return v;
-        }
+    return velocidad::normal;
+}
+
+// ------------------------------------------------------------------ los dos relojes
+int reparto( int velocidad_criatura, int64_t tic, int factor )
+{
+    if( factor <= 1 ) {
+        return velocidad_criatura;
     }
-    return velocidad::x1;
+    const int64_t k = ( ( tic % factor ) + factor ) % factor;
+    const int64_t v = velocidad_criatura;
+    return static_cast<int>( v * ( k + 1 ) / factor - v * k / factor );
+}
+
+bool es_tic_de_accion( int64_t tic, int fase, int factor )
+{
+    if( factor <= 1 ) {
+        return true;
+    }
+    return ( ( ( tic + fase ) % factor ) + factor ) % factor == 0;
+}
+
+static int64_t tic_actual()
+{
+    return to_turn<int64_t>( calendar::turn );
+}
+
+int puntos_por_tic( int velocidad_criatura, bool al_ritmo_del_mundo )
+{
+    if( al_ritmo_del_mundo ) {
+        return velocidad_criatura;
+    }
+    return reparto( velocidad_criatura, tic_actual(), factor_accion() );
+}
+
+bool tic_de_accion( int fase )
+{
+    return es_tic_de_accion( tic_actual(), fase, factor_accion() );
+}
+
+int turnos_de_accion( int turnos, int fase )
+{
+    const int f = factor_accion();
+    if( f <= 1 ) {
+        return turnos;
+    }
+    if( turnos == 1 ) {
+        return tic_de_accion( fase ) ? 1 : 0;
+    }
+    return turnos / f;
+}
+
+bool efecto_real( const std::string &id )
+{
+    static const std::array<const char *, 12> reales = { {
+            "stunned", "downed", "dazed", "bleed", "grabbed", "grabbing", "onfire", "staggered", "winded",
+            "flash_blinded", "hit_by_player", "pushed"
+        }
+    };
+    return std::find( reales.begin(), reales.end(), id ) != reales.end();
 }
 
 // ------------------------------------------------------------------ el reloj
@@ -253,6 +313,15 @@ bool activo()
     return !test_mode && get_option<bool>( "REALTIME" );
 }
 
+int factor_accion()
+{
+    if( !activo() ) {
+        return 1;
+    }
+    const int m = multiplicador( el_reloj().vel() );
+    return m > 0 ? m : 24;
+}
+
 void poner( velocidad v )
 {
     el_reloj().poner( v );
@@ -272,7 +341,7 @@ void bajar()
 
 void alternar_pausa()
 {
-    static velocidad antes = velocidad::x1;
+    static velocidad antes = velocidad::normal;
     reloj &r = el_reloj();
     if( r.vel() == velocidad::pausa ) {
         poner( antes );
@@ -293,9 +362,10 @@ void peligro()
         if( r.vel() != velocidad::pausa ) {
             alternar_pausa();
         }
-    } else if( que == "x1" ) {
-        if( static_cast<int>( r.vel() ) > static_cast<int>( velocidad::x1 ) ) {
-            poner( velocidad::x1 );
+    } else if( que == "x1" || que == "normal" ) {
+        // («acelerar todo» vuelve sola a la normal; las duraciones del día no se tocan)
+        if( r.vel() == velocidad::maxima ) {
+            poner( velocidad::normal );
         }
     }
 }

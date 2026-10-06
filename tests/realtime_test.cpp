@@ -42,8 +42,7 @@ int turnos_en( realtime::reloj &r, tiempo_falso &tf, double segundos, double ms_
 TEST_CASE( "realtime_speeds_give_N_turns_per_real_second", "[realtime]" )
 {
     for( const realtime::velocidad v : {
-             realtime::velocidad::x1, realtime::velocidad::x3, realtime::velocidad::x10,
-             realtime::velocidad::x30, realtime::velocidad::x72
+             realtime::velocidad::lento, realtime::velocidad::normal, realtime::velocidad::rapido
          } ) {
         tiempo_falso tf;
         realtime::reloj r( [&tf]() {
@@ -84,15 +83,15 @@ TEST_CASE( "realtime_waits_for_the_deadline_between_turns", "[realtime]" )
     realtime::reloj r( [&tf]() {
         return tf.ahora();
     } );
-    r.poner( realtime::velocidad::x1 );
+    r.poner( realtime::velocidad::lento );
     REQUIRE( r.toca() );
     r.empezar();
-    // a x1, el siguiente turno, un segundo después
+    // con el día lento (12 tics por segundo), el siguiente tic 83,3 ms después
     CHECK_FALSE( r.toca() );
-    CHECK( r.ms_hasta_turno() > 990 );
-    tf.pasar_ms( 999.0 );
+    CHECK( r.ms_hasta_turno() > 80 );
+    tf.pasar_ms( 83.0 );
     CHECK_FALSE( r.toca() );
-    tf.pasar_ms( 1.0 );
+    tf.pasar_ms( 0.5 );
     CHECK( r.toca() );
 }
 
@@ -102,28 +101,29 @@ TEST_CASE( "realtime_falls_behind_without_debt_and_says_so", "[realtime]" )
     realtime::reloj r( [&tf]() {
         return tf.ahora();
     } );
-    r.poner( realtime::velocidad::x72 );
-    // cada turno tarda 50 ms (no llega a x72, que pide 13,9 ms): va lo más rápido que puede, unos 20 por segundo
+    r.poner( realtime::velocidad::rapido );
+    // cada turno tarda 50 ms (no llega al día rápido, que pide 20,8 ms): va lo más rápido que puede, unos 20 por segundo
     const int lentos = turnos_en( r, tf, 10.0, 50.0 );
     CHECK( lentos >= 190 );
     CHECK( lentos <= 201 );
     CHECK( r.retrasado );
-    // y cuando vuelve a ir ligero, a x72 sin ráfaga para «recuperar» lo perdido (como mucho los 100 ms del margen)
+    // y cuando vuelve a ir ligero, a 48 por segundo sin ráfaga para «recuperar» lo perdido (como mucho los 100 ms
+    // del margen)
     const int ligeros = turnos_en( r, tf, 2.0, 1.0 );
-    CHECK( ligeros <= 2 * 72 + 8 );
-    CHECK( ligeros >= 2 * 72 - 2 );
+    CHECK( ligeros <= 2 * 48 + 6 );
+    CHECK( ligeros >= 2 * 48 - 2 );
     CHECK_FALSE( r.retrasado );
 }
 
 TEST_CASE( "realtime_frame_yields_are_made_up_within_the_margin", "[realtime]" )
 {
     // como en el navegador: turnos de 4 ms, y cada 30 ms el juego cede el control y se le van 17 ms (un fotograma).
-    // Los turnos que tocaban mientras se hacen seguidos después, y a x72 pasan 72 por segundo
+    // Los turnos que tocaban mientras se hacen seguidos después, y con el día rápido pasan 48 por segundo
     tiempo_falso tf;
     realtime::reloj r( [&tf]() {
         return tf.ahora();
     } );
-    r.poner( realtime::velocidad::x72 );
+    r.poner( realtime::velocidad::rapido );
     const instante fin = tf.t + std::chrono::seconds( 10 );
     instante ultima_cesion = tf.t;
     int n = 0;
@@ -140,8 +140,8 @@ TEST_CASE( "realtime_frame_yields_are_made_up_within_the_margin", "[realtime]" )
             tf.pasar_ms( 0.5 );
         }
     }
-    CHECK( n >= 10 * 72 - 5 );
-    CHECK( n <= 10 * 72 + 5 );
+    CHECK( n >= 10 * 48 - 5 );
+    CHECK( n <= 10 * 48 + 5 );
 }
 
 TEST_CASE( "realtime_changing_speed_starts_counting_from_now", "[realtime]" )
@@ -150,23 +150,75 @@ TEST_CASE( "realtime_changing_speed_starts_counting_from_now", "[realtime]" )
     realtime::reloj r( [&tf]() {
         return tf.ahora();
     } );
-    r.poner( realtime::velocidad::x1 );
+    r.poner( realtime::velocidad::lento );
     r.empezar();
-    tf.pasar_ms( 100.0 );
-    // a x72 en mitad de un turno de x1: el siguiente ya puede empezar (sin esperar al plazo de x1)
-    r.poner( realtime::velocidad::x72 );
+    tf.pasar_ms( 50.0 );
+    // al día rápido en mitad de un tic del lento: el siguiente ya puede empezar (sin esperar al plazo del lento)
+    r.poner( realtime::velocidad::rapido );
     CHECK( r.toca() );
 }
 
 TEST_CASE( "realtime_speed_names_and_options", "[realtime]" )
 {
     CHECK( realtime::de_texto( "pausa" ) == realtime::velocidad::pausa );
-    CHECK( realtime::de_texto( "1" ) == realtime::velocidad::x1 );
-    CHECK( realtime::de_texto( "72" ) == realtime::velocidad::x72 );
+    CHECK( realtime::de_texto( "lento" ) == realtime::velocidad::lento );
+    CHECK( realtime::de_texto( "normal" ) == realtime::velocidad::normal );
+    CHECK( realtime::de_texto( "rapido" ) == realtime::velocidad::rapido );
     CHECK( realtime::de_texto( "max" ) == realtime::velocidad::maxima );
-    CHECK( realtime::de_texto( "lo que sea" ) == realtime::velocidad::x1 );
-    CHECK( realtime::multiplicador( realtime::velocidad::x30 ) == 30 );
-    CHECK( realtime::nombre( realtime::velocidad::x10 ) == "x10" );
+    CHECK( realtime::de_texto( "lo que sea" ) == realtime::velocidad::normal );
+    CHECK( realtime::multiplicador( realtime::velocidad::normal ) == 24 );
+    CHECK( realtime::nombre( realtime::velocidad::normal ) == "Day 1h" );
+}
+
+TEST_CASE( "realtime_movement_points_are_shared_out_among_the_tics", "[realtime]" )
+{
+    // en factor tics seguidos, exactamente la velocidad (sin perder restos), y en cada uno casi lo mismo
+    for( const int factor : { 12, 24, 48 } ) {
+        for( const int velocidad : { 100, 87, 7, 250 } ) {
+            CAPTURE( factor, velocidad );
+            for( const int64_t desde : { 0, 5, 1000003 } ) {
+                int suma = 0;
+                int minimo = velocidad;
+                int maximo = 0;
+                for( int64_t t = desde; t < desde + factor; t++ ) {
+                    const int p = realtime::reparto( velocidad, t, factor );
+                    suma += p;
+                    minimo = std::min( minimo, p );
+                    maximo = std::max( maximo, p );
+                }
+                CHECK( suma == velocidad );
+                CHECK( maximo - minimo <= 1 );
+            }
+        }
+    }
+    // sin tiempo real (factor 1), la velocidad entera en cada tic: como siempre
+    CHECK( realtime::reparto( 100, 7, 1 ) == 100 );
+    // y en las pruebas no hay reparto: el resto de pruebas del juego van como siempre
+    CHECK( realtime::factor_accion() == 1 );
+    CHECK( realtime::puntos_por_tic( 100, false ) == 100 );
+}
+
+TEST_CASE( "realtime_action_tics_come_once_per_real_second", "[realtime]" )
+{
+    // una vez cada factor tics, en el tic que le toca a su fase
+    for( const int factor : { 12, 24, 48 } ) {
+        for( const int fase : { 0, 5, 20 } ) {
+            int veces = 0;
+            for( int64_t t = 100; t < 100 + 10 * factor; t++ ) {
+                veces += realtime::es_tic_de_accion( t, fase, factor ) ? 1 : 0;
+            }
+            CHECK( veces == 10 );
+        }
+    }
+    // fases distintas, tics distintos (para repartirlos)
+    int coinciden = 0;
+    for( int64_t t = 0; t < 24; t++ ) {
+        coinciden += realtime::es_tic_de_accion( t, 0, 24 ) && realtime::es_tic_de_accion( t, 10, 24 ) ? 1 : 0;
+    }
+    CHECK( coinciden == 0 );
+    CHECK( realtime::efecto_real( "stunned" ) );
+    CHECK( realtime::efecto_real( "bleed" ) );
+    CHECK_FALSE( realtime::efecto_real( "hunger" ) );
 }
 
 TEST_CASE( "realtime_is_off_in_tests", "[realtime]" )
