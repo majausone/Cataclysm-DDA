@@ -12,6 +12,7 @@
 //    que no acaba) de un ATASCO (mira el teclado pero el turno no avanza ni con Escape: un menú que no se cierra);
 //  - apunta en el fichero, una línea por cosa: las teclas con su turno (para reproducirlo), el estado cada
 //    10 s, y al final FIN, CUELGUE, ATASCO o MUERTO;
+//  - con CDDA_SIM_NPC, pone un superviviente al lado del jugador cada 30 s (para probar el diálogo);
 //  - y se cierra solo a los CDDA_SIM_SEG segundos (300 por defecto). Código de salida: 0 bien, 3 cuelgue, 4 atasco.
 namespace simulacion
 {

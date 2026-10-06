@@ -1,6 +1,7 @@
 #include "piloto.h"
 
 #include <algorithm>
+#include <atomic>
 #include <deque>
 #include <map>
 #include <memory>
@@ -53,6 +54,7 @@ character_id observador;  // el cuerpo del observador (con el piloto puesto, es 
 int elegido = 0;          // a quién enseñan los paneles (0: al personaje)
 std::optional<bool> pedido; // encender o apagar en el siguiente turno
 std::string motivo;          // por qué se apagó solo
+std::atomic<bool> npc_pedido{ false };
 
 std::string escapar( const std::string &s )
 {
@@ -203,6 +205,11 @@ void alternar()
     }
 }
 
+void pedir_npc_al_lado()
+{
+    npc_pedido = true;
+}
+
 std::string motivo_apagado()
 {
     return motivo;
@@ -213,8 +220,28 @@ void pedir( bool encender )
     pedido = encender;
 }
 
+static void poner_npc_al_lado()
+{
+    avatar &u = get_avatar();
+    // (mejor en una casilla de al lado: con un solo NPC al lado, «hablar» no pregunta con quién)
+    const std::optional<tripoint_bub_ms> donde = libre_cerca( u.pos_bub() );
+    if( !donde ) {
+        return;
+    }
+    const character_id id = get_map().place_npc( donde->xy(), npc_observador );
+    g->load_npcs();
+    if( npc *p = g->find_npc( id ) ) {
+        p->set_fac( faction_no_faction );
+        p->set_attitude( NPCATT_NULL );
+        p->set_mission( NPC_MISSION_NULL );
+    }
+}
+
 void turno()
 {
+    if( npc_pedido.exchange( false ) ) {
+        poner_npc_al_lado();
+    }
     if( pedido ) {
         const bool encender = *pedido;
         pedido.reset();
@@ -378,6 +405,11 @@ extern "C" {
     EMSCRIPTEN_KEEPALIVE void cdda_ia_seleccionar( int id )
     {
         piloto::seleccionar_id( id );
+    }
+    // un superviviente al lado del jugador (para probar el diálogo)
+    EMSCRIPTEN_KEEPALIVE void cdda_sim_npc_al_lado()
+    {
+        piloto::pedir_npc_al_lado();
     }
 }
 #endif
