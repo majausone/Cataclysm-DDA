@@ -1359,6 +1359,62 @@ std::pair<std::map<tripoint_bub_ms, const construction *>, std::vector<const con
     return ret;
 }
 
+std::vector<tripoint_bub_ms> casillas_para_construir( const construction_group_str_id &grupo )
+{
+    avatar &u = get_avatar();
+    const temp_crafting_inventory &inv = u.crafting_inventory();
+    std::vector<tripoint_bub_ms> r;
+    for( const auto &e : valid_constructions_near_player( { grupo }, inv, u ).first ) {
+        r.push_back( e.first );
+    }
+    return r;
+}
+
+bool construir_en( const construction_group_str_id &grupo, const tripoint_bub_ms &pnt )
+{
+    avatar &player_character = get_avatar();
+    const temp_crafting_inventory &total_inv = player_character.crafting_inventory();
+    std::map<tripoint_bub_ms, const construction *> valid = valid_constructions_near_player( { grupo },
+            total_inv, player_character ).first;
+    map &here = get_map();
+    // (si ya hay una obra empezada ahí, se sigue con ella)
+    if( here.partial_con_at( pnt ) ) {
+        player_character.assign_activity( build_construction_activity_actor( here.get_abs( pnt ) ) );
+        return true;
+    }
+    const auto it = valid.find( pnt );
+    if( it == valid.end() ) {
+        return false;
+    }
+    const construction &con = *it->second;
+    std::list<item> used;
+    if( player_character.has_trait( trait_DEBUG_HS ) ) {
+        for( const auto &c : con.requirements->get_components() ) {
+            used.emplace_back( c.front().type );
+        }
+    } else {
+        for( const std::vector<item_comp> &c : con.requirements->get_components() ) {
+            std::list<item> tmp = player_character.consume_items( c, 1, is_crafting_component,
+                                  return_false<itype_id>, true );
+            if( tmp.empty() ) {
+                return false;
+            }
+            used.splice( used.end(), tmp );
+        }
+    }
+    partial_con pc;
+    pc.id = con.id;
+    pc.components = used;
+    here.partial_con_set( pnt, pc );
+    for( const auto &t : con.requirements->get_tools() ) {
+        player_character.consume_tools( t );
+    }
+    player_character.invalidate_crafting_inventory();
+    player_character.invalidate_weight_carried_cache();
+    player_character.assign_activity( build_construction_activity_actor( here.get_abs( pnt ) ) );
+    return true;
+}
+
 void place_construction( std::vector<construction_group_str_id> const &groups )
 {
     avatar &player_character = get_avatar();
