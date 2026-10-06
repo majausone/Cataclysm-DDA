@@ -109,6 +109,8 @@
 
   // ------------------------------------------------------------------ iconos: los sprites del tileset
   const atlas = { listo: false, imagenes: [], ancho: 32, alto: 32 };
+  // (el del mapa del mundo, su propio tileset)
+  const atlasMapa = { listo: false, imagenes: [], ancho: 32, alto: 32 };
   const sprites = new Map();      // "id|cat|var" -> [delante, detrás] o null mientras se pide
   const esperando = new Map();    // clave -> lienzos que esperan
   let pedidosIconos = [];
@@ -117,22 +119,26 @@
     if (!a || !a.imagenes || !a.imagenes.length) return false;
     const fs = window.FS || (window.Module && window.Module.FS);
     if (!fs) return false;
-    atlas.ancho = a.ancho; atlas.alto = a.alto;
-    atlas.imagenes = [];
-    for (const im of a.imagenes) {
-      try {
-        const ruta = im.ruta.startsWith('/') ? im.ruta : '/' + im.ruta;
-        const datos = fs.readFile(ruta);
-        const bmp = await createImageBitmap(new Blob([datos], { type: 'image/png' }));
-        atlas.imagenes.push({ ...im, bmp, columnas: Math.max(1, Math.floor(bmp.width / im.ancho)) });
-      } catch { /* esa imagen no está */ }
-    }
-    atlas.listo = atlas.imagenes.length > 0;
+    const leer = async (destino, origen) => {
+      destino.ancho = origen.ancho; destino.alto = origen.alto;
+      destino.imagenes = [];
+      for (const im of origen.imagenes) {
+        try {
+          const ruta = im.ruta.startsWith('/') ? im.ruta : '/' + im.ruta;
+          const datos = fs.readFile(ruta);
+          const bmp = await createImageBitmap(new Blob([datos], { type: 'image/png' }));
+          destino.imagenes.push({ ...im, bmp, columnas: Math.max(1, Math.floor(bmp.width / im.ancho)) });
+        } catch { /* esa imagen no está */ }
+      }
+      destino.listo = destino.imagenes.length > 0;
+    };
+    await leer(atlas, a);
+    if (a.mapa) await leer(atlasMapa, a.mapa);
     return atlas.listo;
   }
-  function pintarSprite(ctx, indice, w, h) {
+  function pintarSprite(ctx, indice, w, h, de = atlas) {
     if (indice < 0) return false;
-    const im = atlas.imagenes.find((x) => indice >= x.desde && indice < x.desde + x.cuantos);
+    const im = de.imagenes.find((x) => indice >= x.desde && indice < x.desde + x.cuantos);
     if (!im) return false;
     const local = indice - im.desde;
     const sx = (local % im.columnas) * im.ancho, sy = Math.floor(local / im.columnas) * im.alto;
@@ -668,6 +674,7 @@
       lienzo.width = w * devicePixelRatio; lienzo.height = h * devicePixelRatio;
       const ctx = lienzo.getContext('2d');
       ctx.scale(devicePixelRatio, devicePixelRatio);
+      ctx.imageSmoothingEnabled = false;
       ctx.fillStyle = '#0b0d11'; ctx.fillRect(0, 0, w, h);
       const t = zoomMapa;
       const ox = w / 2 - (radio + 0.5) * t + desX, oy = h / 2 - (radio + 0.5) * t + desY;
@@ -677,7 +684,18 @@
         if (x < -t || y < -t || x > w || y > h) continue;
         const cel = m.casillas[i];
         if (!cel) { ctx.fillStyle = '#15171c'; ctx.fillRect(x, y, t, t); continue; }
-        const [tipo, , sim, col] = cel;
+        const [tipo, , sim, col, delante = -1, detras = -1, giro = 0] = cel;
+        // con su dibujo del tileset del mapa (girado si toca); si no lo hay, un color y su letra
+        if (atlasMapa.listo && delante >= 0) {
+          ctx.save();
+          ctx.translate(x + t / 2, y + t / 2);
+          if (giro) ctx.rotate(giro * Math.PI / 2);
+          ctx.translate(-t / 2, -t / 2);
+          if (detras >= 0) pintarSprite(ctx, detras, t, t, atlasMapa);
+          pintarSprite(ctx, delante, t, t, atlasMapa);
+          ctx.restore();
+          continue;
+        }
         ctx.fillStyle = colorTerreno(tipo);
         ctx.fillRect(x, y, t - (t > 8 ? 1 : 0), t - (t > 8 ? 1 : 0));
         if (t >= 14 && !/^(forest|field|river|lake|open_air|empty_rock)/.test(tipo)) { ctx.fillStyle = color(col); ctx.fillText(sim, x + t / 2, y + t / 2 + 1); }
