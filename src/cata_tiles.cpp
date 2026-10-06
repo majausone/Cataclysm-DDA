@@ -630,7 +630,12 @@ void cata_tiles::draw( const point &dest, const tripoint_bub_ms &center, int wid
 
     o = is_isometric() ? center.xy().raw() : center.xy().raw() - point( POSX, POSY );
 
-    op = dest;
+    {
+        const point visible = tamano_ventana_logica();
+        desplazamiento_vista = point( visible.x > 0 && width > visible.x - dest.x ? ( visible.x - dest.x - width ) / 2 : 0,
+                                      visible.y > 0 && height > visible.y - dest.y ? ( visible.y - dest.y - height ) / 2 : 0 );
+    }
+    op = dest + desplazamiento_vista;
     // (movimiento suave: si la vista sigue al jugador, el mapa se desliza con él)
     suave::nueva_imagen();
     camara_suave = center.xy() == get_avatar().pos_bub().xy() && !is_isometric() ?
