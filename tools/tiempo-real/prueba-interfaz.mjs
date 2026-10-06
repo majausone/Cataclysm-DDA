@@ -1,11 +1,11 @@
-// Prueba de la interfaz web (Encargo 7, B), con Playwright (Chromium sin ventana):
+// Prueba de la interfaz web (Encargos 7 y 8), con Playwright (Chromium sin ventana):
 //   node tools/tiempo-real/prueba-interfaz.mjs [--url http://localhost:8095/] [--fotos carpeta]
-// Arranca una partida y comprueba, con fotos de cada paso:
-//  1. el HUD (hora, necesidades, cuerpo, mano) y el registro de mensajes se pintan y se actualizan;
-//  2. clic en una casilla del mapa: sale un menú con sus acciones; en un NPC, «Hablar» abre el diálogo y se puede
-//     salir de él (el juego no se queda colgado);
-//  3. el botón del menú abre el panel, el juego se pausa, cada pestaña se pinta, y al cerrarlo sigue a su velocidad;
-//  4. con 100 zombis alrededor, el día normal sigue a 24 tics por segundo (y cuánto cuesta cada tic);
+// Arranca una partida desde nuestra pantalla de inicio y comprueba, con fotos de cada paso:
+//  1. el HUD (hora, necesidades, cuerpo, mano) se pinta y se actualiza;
+//  2. clic en una casilla del mapa: sale un menú con sus acciones; en un NPC, «Hablar» abre nuestra ventana de
+//     diálogo, el mundo sigue mientras se habla y se puede cerrar;
+//  3. el botón del menú abre el panel, el mundo sigue, y cada pestaña se pinta (también la de mensajes);
+//  4. con 100 zombis alrededor sigue a 24 tics por segundo (y cuánto cuesta cada tic);
 //  5. en un móvil (390×844) se ve entero.
 // Devuelve 0 si todo va bien.
 import { mkdirSync } from 'node:fs';
@@ -21,12 +21,15 @@ const esperar = (p, ms) => p.waitForTimeout(ms);
 
 async function arrancar(p) {
   await p.goto(URL);
-  await p.waitForFunction(() => window.wasmExports && window.wasmExports.cdda_turno, null, { timeout: 240000 });
-  await esperar(p, 20000); await p.keyboard.press('Enter'); await esperar(p, 15000); await p.keyboard.press('d');
+  await p.waitForSelector('#inicio:not(.oculto)', { timeout: 240000 });
+  await esperar(p, 1000);
+  await p.locator('#inicio .nueva').first().click();
+  await esperar(p, 500);
+  await p.locator('#inicio .empezar').first().click();
   await p.waitForFunction(() => { const h = document.getElementById('hud'); return h && !h.classList.contains('oculto'); }, null, { timeout: 240000 });
   await esperar(p, 4000);
 }
-const estado = (p) => p.evaluate(() => ({ turno: wasmExports.cdda_turno(), vel: wasmExports.cdda_rt_velocidad(), ventanas: wasmExports.cdda_ventanas(), tps: wasmExports.cdda_rt_turnos_por_segundo() }));
+const estado = (p) => p.evaluate(() => ({ turno: wasmExports.cdda_turno(), ventanas: wasmExports.cdda_ventanas(), tps: wasmExports.cdda_rt_turnos_por_segundo() }));
 // el píxel (en coordenadas de la página) del centro de la casilla (dx, dy) respecto del jugador
 const pixelDe = (p, dx, dy) => p.evaluate(([dx, dy]) => {
   const c = document.getElementById('canvas'), rect = c.getBoundingClientRect();
@@ -46,21 +49,18 @@ const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
 p.on('pageerror', (e) => errores.push(e.message.slice(0, 300)));
 await arrancar(p);
 
-// 1. HUD y registro
+// 1. HUD
 const hud = await p.evaluate(() => ({
   hora: document.querySelector('#hud .hora').textContent, necesidades: document.querySelectorAll('#hud .necesidad').length,
-  partes: document.querySelectorAll('#hud .parte').length, mano: document.querySelector('#hud .mano').textContent,
-  mensajes: document.querySelectorAll('#registro .mensaje').length,
+  partes: document.querySelectorAll('#hud .parte').length, mano: document.querySelector('#hud .mano').textContent.trim(),
 }));
-comprobar('el HUD se pinta (hora, 7 necesidades, cuerpo, mano)', /\d/.test(hud.hora) && hud.necesidades === 7 && hud.partes >= 6 && hud.mano.includes('mano'), hud);
-comprobar('el registro tiene mensajes', hud.mensajes > 0, { mensajes: hud.mensajes });
+comprobar('el HUD se pinta (hora, 7 necesidades, cuerpo, mano)', /\d/.test(hud.hora) && hud.necesidades === 7 && hud.partes >= 6 && hud.mano.length > 0, hud);
 const h0 = hud.hora; await esperar(p, 6000);
 const h1 = await p.evaluate(() => document.querySelector('#hud .hora').textContent);
 comprobar('la hora del HUD avanza sola', h1 !== h0, { antes: h0, despues: h1 });
-await p.screenshot({ path: `${FOTOS}/1-hud-y-mensajes.png` });
+await p.screenshot({ path: `${FOTOS}/1-hud.png` });
 
 // 2. menú de una casilla (la de al lado) y hablar con un NPC
-await p.evaluate(() => wasmExports.cdda_rt_poner_velocidad(1));
 let px = await pixelDe(p, 1, 0);
 comprobar('se encuentra en pantalla la casilla de al lado del jugador', !!px, px || {});
 if (px) {
@@ -84,53 +84,43 @@ if (npc) {
   await p.mouse.click(px.x, px.y);
   await esperar(p, 600);
   await p.screenshot({ path: `${FOTOS}/3-menu-npc.png` });
-  const hablar = p.locator('#menu-casilla button', { hasText: 'Hablar' });
-  await hablar.click();
+  await p.locator('#menu-casilla button', { hasText: /Hablar|Talk/ }).first().click();
   await esperar(p, 2500);
-  const e = await estado(p);
-  comprobar('«Hablar» abre el diálogo', e.ventanas > 1, e);
-  const tapado = await p.evaluate(() => !document.getElementById('hud').classList.contains('oculto') || !document.getElementById('registro').classList.contains('oculto'));
-  comprobar('con el diálogo abierto, el HUD y los mensajes se apartan', !tapado);
-  await p.screenshot({ path: `${FOTOS}/4-dialogo.png` });
-  // salir del diálogo: Escape (y si pregunta, la última respuesta)
-  // (algunos NPC no tienen respuesta de despedida y Escape no cierra: entonces se contesta, y se confirma con «y»)
-  const salir = ['Escape', 'Escape', 'Escape', 'd', 'y', 'c', 'y', 'b', 'y', 'a', 'y', 'Escape', 'Escape'];
-  for (let i = 0; i < salir.length && (await estado(p)).ventanas > 1; i++) { await p.keyboard.press(salir[i]); await esperar(p, 800); }
+  const abierto = await p.locator('#dialogo:not(.oculto)').count();
+  comprobar('«Hablar» abre nuestra ventana de diálogo', abierto > 0);
   const t0 = (await estado(p)).turno; await esperar(p, 3000); const e2 = await estado(p);
-  comprobar('después de hablar, el juego sigue (no se cuelga)', e2.ventanas <= 1 && e2.turno > t0, { ...e2, turnos: e2.turno - t0 });
+  comprobar('mientras se habla, el mundo sigue', e2.turno - t0 >= 3 * 24 * 0.8, { turnos: e2.turno - t0 });
+  await p.screenshot({ path: `${FOTOS}/4-dialogo.png` });
+  if (abierto) await p.locator('#dialogo .cerrar').click();
+  await esperar(p, 1000);
+  comprobar('el diálogo se cierra', (await p.locator('#dialogo:not(.oculto)').count()) === 0);
 }
 
-// 3. panel con pestañas
-await p.evaluate(() => wasmExports.cdda_rt_poner_velocidad(2));
-await esperar(p, 1000);
-await p.click('#boton-menu');
+// 3. panel con pestañas: el mundo no se para
+await p.click('#botonera .menu');
 await esperar(p, 800);
-const e3 = await estado(p);
-comprobar('al abrir el panel el juego se pausa', e3.vel === 0, e3);
-for (const pest of ['inventario', 'fabricar', 'construir', 'salud', 'personaje', 'mapa']) {
+const e3 = await estado(p); await esperar(p, 2000); const e3b = await estado(p);
+comprobar('con el panel abierto el mundo sigue', e3b.turno - e3.turno >= 2 * 24 * 0.8, { turnos: e3b.turno - e3.turno });
+for (const pest of ['inventario', 'fabricar', 'construir', 'salud', 'personaje', 'mapa', 'mensajes']) {
   await p.click(`#panel .pestanas button[data-p="${pest}"]`);
   await esperar(p, 1500);
-  const filas = await p.evaluate(() => document.querySelectorAll('#panel .contenido > *, #panel .contenido .fila-item').length);
+  const filas = await p.evaluate(() => document.querySelectorAll('#panel .contenido > *').length);
   comprobar(`la pestaña ${pest} se pinta`, filas > 0, { elementos: filas });
   await p.screenshot({ path: `${FOTOS}/5-panel-${pest}.png` });
 }
 await p.click('#panel .cerrar');
-await esperar(p, 1500);
-const e4 = await estado(p);
-comprobar('al cerrar el panel sigue a su velocidad', e4.vel === 2, e4);
+await esperar(p, 1000);
 
 // 4. zona cargada: 100 zombis alrededor
 await p.evaluate(() => wasmExports.cdda_sim_carga(100));
 await esperar(p, 4000);
-let a = await estado(p), t = Date.now(); await esperar(p, 8000); let z = await estado(p);
-const tpsNormal = (z.turno - a.turno) / ((Date.now() - t) / 1000);
+const a = await estado(p), t = Date.now(); await esperar(p, 8000); const z = await estado(p);
+const tps = (z.turno - a.turno) / ((Date.now() - t) / 1000);
 await p.screenshot({ path: `${FOTOS}/6-cien-zombis.png` });
-// (lo que cuesta cada tic: cuántos podría hacer por segundo. La máxima no sirve para medirlo aquí: con zombis a la
-// vista, el aviso de peligro la baja sola)
+// (lo que cuesta cada tic: cuántos podría hacer por segundo)
 const msTic = await p.evaluate(() => wasmExports.cdda_rt_ms_turno());
-r.cargada = { tpsNormal: +tpsNormal.toFixed(1), msPorTic: +msTic.toFixed(1), ticsPorSegundoPosibles: Math.round(1000 / msTic) };
-comprobar('con 100 zombis alrededor, el día normal sigue a 24 tics por segundo', tpsNormal >= 24 * 0.9, r.cargada);
-await p.evaluate(() => wasmExports.cdda_rt_poner_velocidad(2));
+r.cargada = { tps: +tps.toFixed(1), msPorTic: +msTic.toFixed(1), ticsPorSegundoPosibles: Math.round(1000 / msTic) };
+comprobar('con 100 zombis alrededor sigue a 24 tics por segundo', tps >= 24 * 0.9, r.cargada);
 comprobar('sin errores en la página', errores.length === 0, { errores: errores.slice(0, 3) });
 await p.close();
 
@@ -138,7 +128,7 @@ await p.close();
 const m = await b.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 await arrancar(m);
 await m.screenshot({ path: `${FOTOS}/7-movil.png` });
-await m.click('#boton-menu');
+await m.click('#botonera .menu');
 await esperar(m, 1200);
 await m.screenshot({ path: `${FOTOS}/8-movil-panel.png` });
 const anchoPanel = await m.evaluate(() => document.getElementById('panel').getBoundingClientRect().width);

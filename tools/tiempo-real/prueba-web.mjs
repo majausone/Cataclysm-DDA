@@ -1,13 +1,12 @@
 // Prueba del tiempo real en la versión web, con Playwright (Chromium sin ventana):
 //   node tools/tiempo-real/prueba-web.mjs [--url http://localhost:8095/] [--fotos carpeta] [--minutos 3]
-// Arranca una partida («Play Now! (Default Scenario)») y comprueba, leyendo el estado del juego desde JS (las
+// Arranca una partida desde nuestra pantalla de inicio y comprueba, leyendo el estado del juego desde JS (las
 // funciones cdda_* que exporta src/realtime.cpp, en wasmExports):
-//  1. a cada velocidad pasan los tics por segundo que tocan (día lento 12, normal 24, rápido 48; y cuánto tarda
-//     cada uno);
-//  2. con un menú abierto (el inventario) el tic no avanza, y al cerrarlo sigue;
-//  3. en pausa (F8) no avanza, y al quitarla sigue;
-//  4. andando con el día normal, el reloj sigue a su paso (24 tics por segundo);
-//  5. una partida de unos minutos con el día normal moviéndose, sin cuelgues ni errores.
+//  1. pasan 24 tics por segundo (cada tic, un segundo del mundo), siempre: no hay velocidades que elegir;
+//  2. con el inventario abierto el reloj sigue (ningún menú para el mundo);
+//  3. F8 (la antigua pausa) no para nada;
+//  4. andando, el reloj sigue a su paso (24 tics por segundo);
+//  5. una partida de unos minutos moviéndose, sin cuelgues ni errores.
 // Devuelve 0 si todo va bien. Hace fotos de cada paso.
 import { mkdirSync } from 'node:fs';
 const { chromium } = await import('playwright');
@@ -31,17 +30,16 @@ const estado = () => p.evaluate(() => {
   return { turno: e.cdda_turno(), hora: new TextDecoder().decode(m.subarray(ptr, fin)), vel: e.cdda_rt_velocidad(), tps: e.cdda_rt_turnos_por_segundo(),
     msTurno: e.cdda_rt_ms_turno(), retrasado: e.cdda_rt_retrasado(), ventanas: e.cdda_ventanas() };
 });
-const poner = (v) => p.evaluate((v) => window.wasmExports.cdda_rt_poner_velocidad(v), v);
 const foto = (n) => p.screenshot({ path: `${FOTOS}/${n}.png` });
 const esperar = (ms) => p.waitForTimeout(ms);
 
 await p.goto(URL);
-// el primer menú (idioma), y la partida rápida
-await p.waitForFunction(() => window.wasmExports && window.wasmExports.cdda_turno, null, { timeout: 180000 });
-await esperar(20000);
-await p.keyboard.press('Enter');
-await esperar(15000);
-await p.keyboard.press('d');
+// nuestra pantalla de inicio: partida nueva
+await p.waitForSelector('#inicio:not(.oculto)', { timeout: 240000 });
+await esperar(1000);
+await p.locator('#inicio .nueva').first().click();
+await esperar(500);
+await p.locator('#inicio .empezar').first().click();
 // hasta que el turno avanza solo (la partida ya está en marcha)
 const t0 = Date.now();
 let antes = null, enMarcha = false;
@@ -54,57 +52,39 @@ while (Date.now() - t0 < 240000) {
 comprobar('la partida arranca y el reloj corre solo', enMarcha, { segundos: Math.round((Date.now() - t0) / 1000) });
 await foto('1-partida');
 
-// 1. velocidades
-for (const [nombre, v, seg] of [['lento', VEL.lento, 8], ['normal', VEL.normal, 8], ['rapido', VEL.rapido, 6], ['max', VEL.max, 6]]) {
-  await poner(v);
+// 1. 24 tics por segundo
+{
   await esperar(1500);
   const a = await estado(), ta = Date.now();
-  await esperar(seg * 1000);
+  await esperar(8000);
   const z = await estado(), s = (Date.now() - ta) / 1000;
-  const tps = (z.turno - a.turno) / s, pedido = [0, 12, 24, 48][v];
-  r.velocidades[nombre] = { turnosPorSegundo: +tps.toFixed(1), msPorTurno: +z.msTurno.toFixed(2), retrasado: !!z.retrasado, hora: z.hora };
-  // (a las de verdad, lo pedido con un 10 % de margen; si no llega, que lo diga en pantalla: retrasado)
-  if (pedido) comprobar(`a ${nombre} pasan ${pedido} turnos por segundo (o dice que no llega)`, Math.abs(tps - pedido) <= pedido * 0.1 + 0.3 || (tps < pedido && z.retrasado), r.velocidades[nombre]);
-  else {
-    // (a la máxima, lo más rápido que puede: como la más rápida de las otras, que ya iban al tope, o más)
-    const tope = Math.max(...Object.entries(r.velocidades).filter(([k]) => k !== 'max').map(([, x]) => x.turnosPorSegundo));
-    comprobar('a la máxima va todo lo rápido que puede', tps >= tope * 0.9, { ...r.velocidades[nombre], topeDeLasOtras: tope });
-  }
-  await foto(`2-velocidad-${nombre}`);
+  const tps = (z.turno - a.turno) / s;
+  r.velocidades.normal = { turnosPorSegundo: +tps.toFixed(1), msPorTurno: +z.msTurno.toFixed(2), retrasado: !!z.retrasado, hora: z.hora };
+  comprobar('pasan 24 turnos por segundo (o dice que no llega)', Math.abs(tps - 24) <= 24 * 0.1 + 0.3 || (tps < 24 && z.retrasado), r.velocidades.normal);
+  await foto('2-a-24');
 }
 
-// 2. un menú abierto para el reloj
-await poner(VEL.normal);
-await esperar(1000);
+// 2. con el inventario abierto el reloj sigue
 await p.keyboard.press('i');
 await esperar(1500);
 const m0 = await estado();
 await esperar(5000);
 const m1 = await estado();
-await foto('3-menu');
+await foto('3-inventario');
 await p.keyboard.press('Escape');
-await esperar(3000);
-const m2 = await estado();
-comprobar('con el inventario abierto el turno no avanza', m1.turno === m0.turno && m0.ventanas > 1, { turnos: m1.turno - m0.turno, ventanas: m0.ventanas });
-comprobar('y al cerrarlo sigue', m2.turno > m1.turno, { turnos: m2.turno - m1.turno });
+await esperar(1000);
+comprobar('con el inventario abierto el reloj sigue', m1.turno - m0.turno >= 5 * 24 * 0.8, { turnos: m1.turno - m0.turno });
 
-// 3. pausa con F8
+// 3. F8 ya no pausa
 await p.keyboard.press('F8');
 await esperar(1000);
 const p0 = await estado();
 await esperar(4000);
 const p1 = await estado();
-await foto('4-pausa');
-await p.keyboard.press('F8');
-await esperar(3000);
-const p2 = await estado();
-comprobar('en pausa (F8) no avanza', p1.turno === p0.turno && p0.vel === VEL.pausa, { turnos: p1.turno - p0.turno, vel: p0.vel });
-comprobar('y al quitar la pausa sigue a la velocidad de antes', p2.turno > p1.turno && p2.vel === VEL.normal, { turnos: p2.turno - p1.turno, vel: p2.vel });
+await foto('4-sin-pausa');
+comprobar('F8 no para el mundo', p1.turno - p0.turno >= 4 * 24 * 0.8 && p1.vel === VEL.normal, { turnos: p1.turno - p0.turno, vel: p1.vel });
 
-// 4. teclas mientras corre (andar por ahí): el reloj sigue. Solo cuenta el tiempo sin ningún menú abierto (al
-// chocar con alguien o con un mueble el juego pregunta, y con la pregunta abierta el reloj se para, como debe)
-await poner(VEL.normal);
-await esperar(1000);
+// 4. teclas mientras corre (andar por ahí): el reloj sigue
 let turnosAndando = 0, segAndando = 0, pasos = 0, menus = 0;
 let prev = await estado(), tprev = Date.now();
 for (let i = 0; i < 24; i++) {
@@ -112,16 +92,15 @@ for (let i = 0; i < 24; i++) {
   pasos++;
   await esperar(500);
   const e = await estado(), t = Date.now();
-  if (e.ventanas <= 1 && prev.ventanas <= 1) { turnosAndando += e.turno - prev.turno; segAndando += (t - tprev) / 1000; }
+  { turnosAndando += e.turno - prev.turno; segAndando += (t - tprev) / 1000; }
   if (e.ventanas > 1) { menus++; await p.keyboard.press('Escape'); await esperar(300); }
   prev = await estado(); tprev = Date.now();
 }
 const tpsAndando = turnosAndando / Math.max(0.001, segAndando);
-comprobar('andando con el día normal, el reloj sigue a su paso (24 tics/s)', Math.abs(tpsAndando - 24) < 24 * 0.15, { turnosPorSegundo: +tpsAndando.toFixed(2), segundosSinMenus: +segAndando.toFixed(1), pasos, menusCerrados: menus });
+comprobar('andando, el reloj sigue a su paso (24 tics/s)', Math.abs(tpsAndando - 24) < 24 * 0.15, { turnosPorSegundo: +tpsAndando.toFixed(2), segundosSinMenus: +segAndando.toFixed(1), pasos, menusCerrados: menus });
 await foto('5-andando');
 
-// 5. una partida de unos minutos con el día normal, moviéndose de vez en cuando
-await poner(VEL.normal);
+// 5. una partida de unos minutos, moviéndose de vez en cuando
 const l0 = await estado(), tl = Date.now();
 const teclas = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowRight', '.'];
 let quietos = 0, ultimo = l0.turno;
@@ -137,7 +116,7 @@ for (let i = 0; Date.now() - tl < MINUTOS * 60000; i++) {
 const l1 = await estado(), sl = (Date.now() - tl) / 1000;
 r.partida = { minutos: +(sl / 60).toFixed(1), turnos: l1.turno - l0.turno, turnosPorSegundo: +((l1.turno - l0.turno) / sl).toFixed(1), msPorTurno: +l1.msTurno.toFixed(2), hora: l1.hora, vecesParado: quietos };
 // (sin cuelgues: nunca parado, sin errores, y a buen paso: al menos el 75 % de 24, con teclas y menús por medio)
-comprobar(`${MINUTOS} minutos con el día normal sin cuelgues`, quietos === 0 && errores.length === 0 && (l1.turno - l0.turno) / sl >= 0.75 * 24, r.partida);
+comprobar(`${MINUTOS} minutos sin cuelgues`, quietos === 0 && errores.length === 0 && (l1.turno - l0.turno) / sl >= 0.75 * 24, r.partida);
 await foto('6-partida-larga');
 
 await b.close();
