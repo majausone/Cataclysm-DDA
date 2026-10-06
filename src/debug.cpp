@@ -1,4 +1,5 @@
 #include "debug.h"
+#include "simulacion.h"
 
 #include <cctype>
 // IWYU pragma: no_include <sys/errno.h>
@@ -557,6 +558,8 @@ void realDebugmsg( const char *filename, const char *line, const char *funcname,
     if( test_mode ) {
         return;
     }
+    // (el modo simulación los cuenta: cada aviso es un fallo que cazar)
+    simulacion::aviso( std::string( filename ) + ":" + line + " " + text );
 
     // Enable the following to step in debug messages with a debugger
 #if 0

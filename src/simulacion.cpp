@@ -21,6 +21,7 @@
 
 #include "avatar.h"
 #include "calendar.h"
+#include "game.h"
 #include "piloto.h"
 #include "realtime.h"
 #include "ui_manager.h"
@@ -33,6 +34,7 @@ std::atomic<int64_t> latidos{ 0 };
 std::atomic<int64_t> turnos{ 0 };
 std::atomic<bool> muerto{ false };
 std::atomic<int> ventanas{ 0 };
+std::atomic<int> foto_pedida{ 0 };     // una foto de la pantalla (la hace el juego en su siguiente latido): su número
 std::mutex cerrojo;
 std::string estado;                 // el último estado (lo escribe el juego, lo lee el vigilante)
 std::string imgui_activas;          // las ventanas de ImGui abiertas (lo mismo)
@@ -217,8 +219,14 @@ void jugar()
         // el turno no avanza: Escape cada 2 s; si con 10 sigue igual, ATASCO
         if( segundos_desde( t_turno ) > 10 + 2.0 * escapes ) {
             if( escapes >= 10 ) {
+                foto_pedida = 2;
+                std::this_thread::sleep_for( std::chrono::seconds( 2 ) );
                 escribir( "ATASCO el turno no avanza ni con 10 Escape: " + informe() );
                 std::_Exit( 4 );
+            }
+            if( escapes == 0 ) {
+                // (una foto de cómo está antes de los Escape)
+                foto_pedida = 1;
             }
             escapes++;
             apuntar_tecla( "Escape (no avanza)" );
@@ -269,6 +277,11 @@ void latido()
 {
     if( en_marcha() ) {
         const int64_t n = latidos.fetch_add( 1, std::memory_order_relaxed );
+        // (la foto pedida: fichero-1.png antes de los Escape, fichero-2.png al dar el atasco por bueno)
+        if( const int f = foto_pedida.exchange( 0 ) ) {
+            const std::string ruta = fichero + "-" + std::to_string( f ) + ".png";
+            escribir( std::string( "FOTO " ) + ( g->take_screenshot( ruta ) ? "" : "(no se pudo) " ) + ruta );
+        }
         ventanas.store( static_cast<int>( ui_adaptor::ui_stack_size() ), std::memory_order_relaxed );
         // (cada 20 latidos: qué ventanas de ImGui hay abiertas, para el informe de un atasco)
         if( n % 20 == 0 && ImGui::GetCurrentContext() != nullptr ) {
@@ -281,6 +294,13 @@ void latido()
             std::lock_guard<std::mutex> g( cerrojo );
             imgui_activas = v;
         }
+    }
+}
+
+void aviso( const std::string &texto )
+{
+    if( en_marcha() ) {
+        escribir( "AVISO turno " + std::to_string( turnos.load() ) + " " + texto );
     }
 }
 
@@ -331,9 +351,13 @@ void turno()
 // en la web el que juega y vigila es la página (tools/tiempo-real/cazafallos-web.mjs): aquí solo se cuentan los latidos
 #include <emscripten.h>
 
+#include <string>
+
 namespace
 {
 int latidos_web = 0;
+int avisos_web = 0;
+std::string ultimo_aviso_web;
 } // namespace
 
 namespace simulacion
@@ -343,6 +367,11 @@ void latido()
     latidos_web++;
 }
 void turno() {}
+void aviso( const std::string &texto )
+{
+    avisos_web++;
+    ultimo_aviso_web = texto;
+}
 } // namespace simulacion
 
 extern "C" {
@@ -350,6 +379,15 @@ extern "C" {
     EMSCRIPTEN_KEEPALIVE int cdda_latidos()
     {
         return latidos_web;
+    }
+    // cuántos avisos del juego (debugmsg) ha habido, y el último
+    EMSCRIPTEN_KEEPALIVE int cdda_avisos()
+    {
+        return avisos_web;
+    }
+    EMSCRIPTEN_KEEPALIVE const char *cdda_ultimo_aviso()
+    {
+        return ultimo_aviso_web.c_str();
     }
 }
 
@@ -359,6 +397,7 @@ namespace simulacion
 {
 void latido() {}
 void turno() {}
+void aviso( const std::string & ) {}
 } // namespace simulacion
 
 #endif
