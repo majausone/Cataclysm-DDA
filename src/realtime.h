@@ -100,6 +100,10 @@ bool manejar_accion( const std::string &action );
 // ¿repintar ahora?  Hasta x10, siempre; más rápido, como mucho cada 40 ms (25 por segundo, de sobra para verlo):
 // repintar la pantalla entera en cada turno es lo que más frena a las velocidades altas
 bool conviene_repintar();
+// ¿pasar el turno del jugador sin mirar el teclado?  A más de x10, el teclado se mira como mucho cada 30 ms: cada vez
+// que se mira, el juego le cede el control al navegador (o al sistema) y eso pone un tope de unos 30 turnos por
+// segundo. Lo pulsado entretanto se lee en la siguiente mirada (30 ms después como mucho).
+bool saltar_espera();
 // lo que se pinta en pantalla: «x1», «PAUSA», «x72 (va a x41)»...
 std::string texto_estado();
 // la ventanita de la velocidad, siempre a la vista (se crea la primera vez)
