@@ -4,9 +4,11 @@
 #include <array>
 #include <cmath>
 #include <optional>
+#include <thread>
 
 #include "avatar.h"
 #include "calendar.h"
+#include "debug.h"
 #include "cached_options.h"
 #include "game.h"
 #include "input_context.h"
@@ -199,6 +201,18 @@ bool se_puede_guardar( const std::string &a )
     } ) == no.end();
 }
 
+// espera hasta que le toque al siguiente turno sin ceder el control (como mucho unos ms)
+void esperar_sin_ceder( const reloj &r )
+{
+    while( !r.toca() && r.vel() != velocidad::pausa ) {
+#if defined(__EMSCRIPTEN__)
+        // (en el navegador no hay hilos que dormir: se espera mirando la hora)
+#else
+        std::this_thread::sleep_for( std::chrono::microseconds( 500 ) );
+#endif
+    }
+}
+
 void repintar()
 {
     if( test_mode ) {
@@ -292,6 +306,13 @@ void esperar_turno()
             break;
         }
         const int64_t falta = r.ms_hasta_turno();
+        // (a más de x10, lo que falta hasta el plazo, si es poco, se espera sin ceder el control: cada espera del
+        // teclado se lleva al menos un fotograma del navegador y con turnos de 14 ms se perdía uno de cada dos;
+        // el teclado se sigue mirando cada 30 ms, en realtime::saltar_espera)
+        if( falta >= 0 && falta <= 20 && multiplicador( r.vel() ) > 10 ) {
+            esperar_sin_ceder( r );
+            continue;
+        }
         const int t = falta < 0 ? 100 : static_cast<int>( std::clamp<int64_t>( falta, 1, 50 ) );
         input_context ctxt = get_default_mode_input_context();
         const std::string action = ctxt.handle_input( t );
@@ -323,6 +344,14 @@ void esperar_turno()
         }
     }
     r.empezar();
+    // (cada 10 s, al registro del juego: a qué va de verdad y cuánto tarda cada turno)
+    static auto ultimo_registro = std::chrono::steady_clock::now();
+    const auto ahora = std::chrono::steady_clock::now();
+    if( ahora - ultimo_registro >= std::chrono::seconds( 10 ) ) {
+        ultimo_registro = ahora;
+        DebugLog( D_INFO, D_GAME ) << "tiempo real: velocidad " << nombre( r.vel() ) << ", " << r.turnos_por_segundo <<
+                                   " turnos/s, " << r.ms_turno_medio << " ms por turno" << ( r.retrasado ? " (no llega)" : "" );
+    }
 }
 
 bool plazo_vencido( bool vencido_sin_tiempo_real )
@@ -488,4 +517,61 @@ extern "C" {
         return static_cast<int>( ui_adaptor::ui_stack_size() );
     }
 }
+#endif
+
+// ------------------------------------------------------------------ modo de medida (escritorio)
+// Con CDDA_RT_BANCO en el entorno, el juego se maneja solo para medir el tiempo real sin nadie delante: un hilo mete
+// en la cola de SDL (SDL_PushEvent vale desde otro hilo) Enter (idioma), «d» (Play Now! Default Scenario) y luego F7
+// cada 15 s (x1 -> x3 -> x10 -> x30 -> x72 -> máx). Las cifras salen en el registro (debug.log, «tiempo real: ...»).
+#if defined(TILES) && !defined(__EMSCRIPTEN__)
+#include <cstdlib>
+#include <thread>
+#include <SDL3/SDL.h>
+namespace
+{
+void tecla_sdl( SDL_Keycode k, SDL_Scancode sc, const char *texto )
+{
+    SDL_Event e;
+    SDL_zero( e );
+    e.type = SDL_EVENT_KEY_DOWN;
+    e.key.key = k;
+    e.key.scancode = sc;
+    e.key.down = true;
+    SDL_PushEvent( &e );
+    if( texto != nullptr ) {
+        SDL_Event t;
+        SDL_zero( t );
+        t.type = SDL_EVENT_TEXT_INPUT;
+        t.text.text = texto;
+        SDL_PushEvent( &t );
+    }
+    SDL_Event u;
+    SDL_zero( u );
+    u.type = SDL_EVENT_KEY_UP;
+    u.key.key = k;
+    u.key.scancode = sc;
+    SDL_PushEvent( &u );
+}
+struct banco_t {
+    banco_t() {
+        if( std::getenv( "CDDA_RT_BANCO" ) == nullptr ) {
+            return;
+        }
+        std::thread( []() {
+            const auto dormir = []( int s ) {
+                std::this_thread::sleep_for( std::chrono::seconds( s ) );
+            };
+            dormir( 45 );
+            tecla_sdl( SDLK_RETURN, SDL_SCANCODE_RETURN, nullptr );
+            dormir( 20 );
+            tecla_sdl( SDLK_D, SDL_SCANCODE_D, "d" );
+            dormir( 70 );
+            for( int i = 0; i < 5; i++ ) {
+                dormir( 15 );
+                tecla_sdl( SDLK_F7, SDL_SCANCODE_F7, nullptr );
+            }
+        } ).detach();
+    }
+} banco;
+} // namespace
 #endif
