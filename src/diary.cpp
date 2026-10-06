@@ -20,6 +20,7 @@
 #include "filesystem.h"
 #include "flexbuffer_json.h"
 #include "game.h"
+#include "interfaz.h"
 #include "json.h"
 #include "kill_tracker.h"
 #include "magic.h"
@@ -513,7 +514,8 @@ std::string diary::get_head_text( bool is_summary )
 
 void diary::death_entry()
 {
-    bool lasttime = query_yn( _( "Open diary for the last time?" ) );
+    // (con la interfaz web, sin la pregunta: la pantalla de muerte es de la página)
+    bool lasttime = !interfaz::activa() && query_yn( _( "Open diary for the last time?" ) );
     if( lasttime ) {
         show_diary_ui( this );
     }
