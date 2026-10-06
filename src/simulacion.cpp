@@ -17,6 +17,9 @@
 #include <vector>
 
 #include <SDL3/SDL.h>
+#if defined(_WIN32)
+#include <windows.h>
+#endif
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 
@@ -35,6 +38,7 @@ std::atomic<int64_t> latidos{ 0 };
 std::atomic<int64_t> turnos{ 0 };
 std::atomic<bool> muerto{ false };
 std::atomic<int> ventanas{ 0 };
+std::atomic<bool> guardado_pedido{ false };  // un guardado rápido (lo hace el juego al empezar el turno)
 std::atomic<int> foto_pedida{ 0 };     // una foto de la pantalla (la hace el juego en su siguiente latido): su número
 // (lo que comparten el juego y el vigilante no se destruye nunca: si el juego sale por su cuenta, el vigilante sigue
 // un momento y no puede encontrárselo destruido)
@@ -221,8 +225,15 @@ void jugar()
     auto t_tecla = reloj_t::now();
     int escapes = 0;
     const bool con_npc = std::getenv( "CDDA_SIM_NPC" ) != nullptr;
+    const bool con_guardado = std::getenv( "CDDA_SIM_GUARDAR" ) != nullptr;
+    auto t_guardado = reloj_t::now();
     auto t_npc = reloj_t::now() - std::chrono::seconds( 25 );
     while( segundos_desde( t0 ) < duracion ) {
+        if( con_guardado && segundos_desde( t_guardado ) > 20 ) {
+            t_guardado = reloj_t::now();
+            escribir( "GUARDAR turno " + std::to_string( turnos.load() ) );
+            guardado_pedido = true;
+        }
         if( con_npc && segundos_desde( t_npc ) > 30 ) {
             t_npc = reloj_t::now();
             escribir( "NPC al lado, turno " + std::to_string( turnos.load() ) );
@@ -243,6 +254,13 @@ void jugar()
         // CUELGUE: 20 s sin mirar el teclado
         if( segundos_desde( t_latido ) > 20 ) {
             escribir( "CUELGUE 20 s sin mirar el teclado: " + informe() );
+#if defined(_WIN32)
+            // (con gdb debajo (CDDA_SIM_GDB), se para aquí y gdb saca la pila de todos los hilos: la del juego dice
+            // dónde se ha quedado)
+            if( IsDebuggerPresent() ) {
+                DebugBreak();
+            }
+#endif
             std::_Exit( 3 );
         }
         if( muerto ) {
@@ -250,21 +268,28 @@ void jugar()
                       informe() );
             std::_Exit( 0 );
         }
-        // el turno no avanza: Escape cada 2 s; si con 10 sigue igual, ATASCO
+        // el turno no avanza: un intento de salir cada 2 s; si con 30 sigue igual, ATASCO. Los diálogos de un atraco
+        // tienen varios pasos, cada uno con su pregunta («You may be attacked! Proceed?»): hacen falta varios
         if( segundos_desde( t_turno ) > 10 + 2.0 * escapes ) {
-            if( escapes >= 10 ) {
-                foto_pedida = 2;
+            if( escapes >= 30 ) {
+                foto_pedida = 99;
                 std::this_thread::sleep_for( std::chrono::seconds( 2 ) );
-                escribir( "ATASCO el turno no avanza ni con 10 intentos (Escape, a/b y Enter, y, espacio): " + informe() );
+                escribir( "ATASCO el turno no avanza ni con 30 intentos (Escape, a/b/c y Enter, y, espacio): " +
+                          informe() );
                 std::_Exit( 4 );
             }
-            if( escapes == 0 ) {
-                // (una foto de cómo está antes de los Escape)
-                foto_pedida = 1;
-            }
-            // (Escape, y si no, contestar como en un diálogo obligatorio: a o b y Enter, «y» si pregunta si seguir, o espacio)
-            static const std::array<const char *, 10> salidas = { { "Escape", "Escape", "a", "Enter", "y", "b", "Enter", "y", "espacio", "Escape" } };
-            const std::string s = salidas[escapes];
+            // (una foto antes de cada intento: fichero-1.png, fichero-2.png...; y al final, fichero-99.png)
+            foto_pedida = escapes + 1;
+            std::this_thread::sleep_for( std::chrono::milliseconds( 300 ) );
+            // (Escape, y si no, contestar como en un diálogo obligatorio: a, c o b y Enter, «y» si pregunta si seguir,
+            // o espacio)
+            static const std::array<const char *, 15> salidas = { {
+                    "Escape", "Escape", "a", "Enter", "y", "c", "Enter", "y", "b", "Enter", "y", "espacio",
+                    "a", "Enter", "y"
+                }
+            };
+            const std::string s = salidas[escapes % salidas.size()];
+            const char *texto = salidas[escapes % salidas.size()];
             escapes++;
             apuntar_tecla( s + " (no avanza)" );
             if( s == "Escape" ) {
@@ -274,7 +299,7 @@ void jugar()
             } else if( s == "espacio" ) {
                 tecla( SDLK_UNKNOWN, SDL_SCANCODE_UNKNOWN, " " );
             } else {
-                tecla( SDLK_UNKNOWN, SDL_SCANCODE_UNKNOWN, salidas[escapes - 1] );
+                tecla( SDLK_UNKNOWN, SDL_SCANCODE_UNKNOWN, texto );
             }
         }
         // el mono: una tecla cada 150 ms (callado mientras se intenta salir de un atasco)
@@ -327,7 +352,7 @@ void latido()
         if( g != nullptr && g->uquit == QUIT_DIED ) {
             muerto = true;
         }
-        // (la foto pedida: fichero-1.png antes de los Escape, fichero-2.png al dar el atasco por bueno)
+        // (la foto pedida: fichero-N.png antes de cada intento de salir de un atasco, fichero-11.png al darlo por bueno)
         if( const int f = foto_pedida.exchange( 0 ) ) {
             const std::string ruta = fichero + "-" + std::to_string( f ) + ".png";
             escribir( std::string( "FOTO " ) + ( g->take_screenshot( ruta ) ? "" : "(no se pudo) " ) + ruta );
@@ -374,6 +399,9 @@ void turno()
     static_cast<void>( registrado );
     latido();
     turnos.fetch_add( 1, std::memory_order_relaxed );
+    if( guardado_pedido.exchange( false ) ) {
+        g->quicksave();
+    }
     // siempre a la máxima (el peligro la baja a x1)
     if( realtime::el_reloj().vel() != realtime::velocidad::maxima ) {
         realtime::poner( realtime::velocidad::maxima );
