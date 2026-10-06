@@ -437,6 +437,23 @@
     }
     ventanaObjeto.classList.remove('oculto');
   }
+  // «Mirar» una casilla: lo que hay, con su dibujo y lo que dice el juego de cada cosa (sin la vista del juego)
+  function abrirMirar(cas) {
+    const cu = $('.cuerpo', ventanaObjeto);
+    cu.innerHTML = ''; $('.pie', ventanaObjeto).innerHTML = '';
+    $('.titulo', ventanaObjeto).textContent = [cas.criatura, cas.mueble, cas.vehiculo, cas.terreno].filter(Boolean)[0] || '';
+    const bloque = (id, cat, nombre, texto) => {
+      const cab = crear(`<div class="tarjeta-cabeza"></div>`);
+      cab.append(marco(id || '', cat, '', 48), crear(`<div><b>${esc(limpio(nombre))}</b><div class="descripcion">${esc(limpio(texto || ''))}</div></div>`));
+      cu.appendChild(cab);
+    };
+    if (cas.criatura) bloque(cas.tipoCriatura, 'monster', cas.criatura, (cas.descCriatura || []).filter((l) => l && !/^-+$/.test(l)).join(' · '));
+    if (cas.mueble) bloque(cas.idMueble, 'furniture', cas.mueble, cas.descMueble);
+    if (cas.vehiculo) bloque('', 'vpart', cas.vehiculo, '');
+    bloque(cas.idTerreno, 'terrain', cas.terreno, cas.descTerreno);
+    if (cas.numObjetos) cu.appendChild(crear(`<div class="dato"><span>${cas.numObjetos} ${T('objetos')}</span><span>${esc(cas.objetos.map(limpio).join(', '))}</span></div>`));
+    ventanaObjeto.classList.remove('oculto');
+  }
   function abrirLista(titulo, lista) {
     $('.titulo', ventanaObjeto).textContent = titulo;
     const cu = $('.cuerpo', ventanaObjeto);
@@ -695,6 +712,7 @@
         cerrarMenuCasilla();
         if (a.id === 'coger') abrirCoger(cas.dx, cas.dy);
         else if (a.id === 'robar') abrirRobar(cas.dx, cas.dy);
+        else if (a.id === 'mirar') abrirMirar(cas);
         else ordenar({ a: a.id, dx: cas.dx, dy: cas.dy });
         document.getElementById('canvas').focus();
       };

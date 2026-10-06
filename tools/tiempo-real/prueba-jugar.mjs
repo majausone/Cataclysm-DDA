@@ -17,7 +17,7 @@ let paso = 0, mal = 0;
 const foto = async (n) => { await p.screenshot({ path: `${FOTOS}/${String(++paso).padStart(2, '0')}-${n}.png` }); };
 const esperar = (ms) => p.waitForTimeout(ms);
 const comprobar = (n, ok, info = {}) => { if (!ok) mal++; console.log(ok ? 'OK ' : 'MAL', n, JSON.stringify(info)); };
-const estado = () => p.evaluate(() => { try { const e = window.interfazCdda.json('cdda_ui_estado'); return e && { hora: e.hora, actividad: e.actividad && e.actividad.id, ventanas: wasmExports.cdda_ventanas(), turno: wasmExports.cdda_turno(), avisos: wasmExports.cdda_avisos ? wasmExports.cdda_avisos() : 0 }; } catch { return null; } });
+const estado = () => p.evaluate(() => { try { const e = window.interfazCdda.json('cdda_ui_estado'); return e && { hora: e.hora, pos: e.pos, enCamino: e.enCamino, actividad: e.actividad && e.actividad.id, ventanas: wasmExports.cdda_ventanas(), turno: wasmExports.cdda_turno(), avisos: wasmExports.cdda_avisos ? wasmExports.cdda_avisos() : 0 }; } catch { return null; } });
 const clic = async (sel) => { const l = p.locator(sel).first(); await l.click({ timeout: 5000 }); };
 const intentar = async (n, f) => { try { await f(); } catch (e) { comprobar(n, false, { error: e.message.split('\n')[0] }); } };
 
@@ -42,14 +42,61 @@ await intentar('crear personaje', async () => {
   comprobar('la partida empieza', !!e, e || {});
 });
 
-// 2. andar (manteniendo flechas)
+// 2. andar (manteniendo flechas): se mueve al pulsar, a 60 imágenes por segundo, y gira a mitad de paso
+const imagenes = () => p.evaluate(() => wasmExports.cdda_imagenes ? wasmExports.cdda_imagenes() : 0);
+const lado = (q) => Math.max(Math.abs(q[0]), Math.abs(q[1]));
 await intentar('andar', async () => {
-  const a = await estado();
-  await p.keyboard.down('ArrowRight'); await esperar(2500); await p.keyboard.up('ArrowRight');
-  await p.keyboard.down('ArrowDown'); await esperar(1500); await p.keyboard.up('ArrowDown');
+  const a = await estado(), i0 = await imagenes(), t0 = Date.now();
+  await p.keyboard.down('ArrowRight');
+  await esperar(150);
+  const tras = await estado();
+  comprobar('al pulsar, el paso empieza enseguida (antes de 150 ms)', tras.pos[0] !== a.pos[0] || tras.pos[1] !== a.pos[1], { antes: a.pos, despues: tras.pos });
+  await esperar(2350);
+  const fps = ((await imagenes()) - i0) / ((Date.now() - t0) / 1000);
   await foto('andando');
+  await p.keyboard.up('ArrowRight');
   const z = await estado();
-  comprobar('el tiempo sigue andando', z && a && z.turno > a.turno, { turnos: z && a ? z.turno - a.turno : null });
+  comprobar('manteniendo la flecha anda seguido (2-3 casillas en 2,5 s)', z.pos[0] - a.pos[0] >= 2, { casillas: z.pos[0] - a.pos[0] });
+  comprobar('andando se pinta a unas 60 imágenes por segundo', fps >= 50, { imagenesPorSegundo: +fps.toFixed(1) });
+  comprobar('el tiempo sigue andando', z.turno > a.turno, { turnos: z.turno - a.turno });
+  // girar a mitad de paso: derecha y, enseguida, abajo; se ve abajo al momento (no al acabar el paso)
+  await esperar(1500);
+  const g0 = await estado();
+  await p.keyboard.down('ArrowRight'); await esperar(120);
+  const g1 = await estado();
+  await p.keyboard.up('ArrowRight'); await p.keyboard.down('ArrowDown'); await esperar(250);
+  const g2 = await estado();
+  await p.keyboard.up('ArrowDown');
+  await foto('girando');
+  const d1 = [g1.pos[0] - g0.pos[0], g1.pos[1] - g0.pos[1]], d2 = [g2.pos[0] - g0.pos[0], g2.pos[1] - g0.pos[1]];
+  comprobar('si cambia de dirección a mitad de paso, gira al momento', d1[0] === 1 && d2[0] === 0 && d2[1] === 1, { primero: d1, alGirar: d2 });
+});
+
+// 2b. ir a una casilla con un clic: anda todo el camino sin pararse
+await intentar('ir con un clic', async () => {
+  await esperar(1500);
+  const destino = await p.evaluate(() => {
+    const leer = (ptr) => { const m = new Uint8Array(wasmMemory.buffer); let f = ptr; while (m[f]) f++; return JSON.parse(new TextDecoder().decode(m.subarray(ptr, f))); };
+    for (const [dx, dy] of [[4, 0], [-4, 0], [0, 4], [0, -4], [3, 3], [-3, -3], [3, -3], [-3, 3]]) {
+      const c = leer(wasmExports.cdda_ui_casilla(dx, dy));
+      if (c && c.acciones.some((a) => a.id === 'ir')) return { dx, dy };
+    }
+    return null;
+  });
+  if (!destino) { comprobar('hay una casilla libre a 4 pasos para ir', false); return; }
+  const a = await estado();
+  await p.evaluate(({ dx, dy }) => window.interfazCdda.ordenar({ a: 'ir', dx, dy }), destino);
+  let ultimo = a.pos, tUltimo = Date.now(), maxQuieto = 0, llegado = false;
+  const t0 = Date.now();
+  while (Date.now() - t0 < 9000) {
+    await esperar(200);
+    const e = await estado();
+    if (e.pos[0] !== ultimo[0] || e.pos[1] !== ultimo[1]) { maxQuieto = Math.max(maxQuieto, Date.now() - tUltimo); ultimo = e.pos; tUltimo = Date.now(); }
+    if (e.pos[0] === a.pos[0] + destino.dx && e.pos[1] === a.pos[1] + destino.dy) { llegado = true; break; }
+  }
+  await foto('ido');
+  comprobar('con un clic va hasta la casilla', llegado, { destino, desde: a.pos, hasta: ultimo });
+  comprobar('y por el camino no se para (ningún hueco de más de 1,6 s entre pasos)', maxQuieto <= 1600, { msMasLargoQuieto: maxQuieto });
 });
 
 // 3. el inventario: el muñequito, una tarjeta, soltar algo y cogerlo del suelo
