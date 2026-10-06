@@ -85,6 +85,7 @@
 #include "popup.h"
 #include "ranged.h"
 #include "rng.h"
+#include "suave.h"
 #include "safemode_ui.h"
 #if defined(TILES)
 #include "sdl_gamepad.h"
@@ -285,6 +286,7 @@ input_context game::get_player_input( std::string &action )
         const std::string dir = realtime::accion_direccion();
         if( !dir.empty() ) {
             action = dir;
+            suave::anotar_paso_jugador( u.pos_abs(), u.get_moves() );
             return ctxt;
         }
     }

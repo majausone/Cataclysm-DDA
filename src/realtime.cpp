@@ -512,14 +512,24 @@ void acaba_espera_jugador()
 
 namespace
 {
-int direccion_x = 0;
-int direccion_y = 0;
+int dir_x = 0;
+int dir_y = 0;
 } // namespace
 
 void mantener_direccion( int dx, int dy )
 {
-    direccion_x = std::clamp( dx, -1, 1 );
-    direccion_y = std::clamp( dy, -1, 1 );
+    dir_x = std::clamp( dx, -1, 1 );
+    dir_y = std::clamp( dy, -1, 1 );
+}
+
+int direccion_x()
+{
+    return dir_x;
+}
+
+int direccion_y()
+{
+    return dir_y;
 }
 
 std::string accion_direccion()
@@ -533,7 +543,7 @@ std::string accion_direccion()
             { { "LEFTDOWN", "DOWN", "RIGHTDOWN" } }
         }
     };
-    return nombres[direccion_y + 1][direccion_x + 1];
+    return nombres[dir_y + 1][dir_x + 1];
 }
 
 bool hay_accion_pendiente()

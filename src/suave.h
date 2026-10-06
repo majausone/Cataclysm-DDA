@@ -2,6 +2,7 @@
 #ifndef CATA_SRC_SUAVE_H
 #define CATA_SRC_SUAVE_H
 
+#include "coords_fwd.h"
 #include "point.h"
 
 class Creature;
@@ -29,6 +30,15 @@ bool hay_movimiento();
 void nueva_imagen();
 // cuántas imágenes se han pintado
 int imagenes();
+
+// --- girar a mitad de paso (con la tecla mantenida)
+// antes de dar un paso con la tecla mantenida: de dónde sale y los puntos de movimiento que tenía
+void anotar_paso_jugador( const tripoint_abs_ms &desde, int moves_antes );
+// si la tecla mantenida ya no es la del paso que acaba de empezar (en su primer tercio), el paso se rehace hacia la
+// nueva dirección: vuelve a la casilla de salida con los puntos que tenía y anda hacia la nueva, sin pagar dos
+// veces. Solo si la casilla de la que se vuelve no tiene trampas, campos ni vehículos (no hay nada que deshacer) y
+// la nueva está libre. Se mira en cada tic. Devuelve si ha girado.
+bool girar_jugador( int dx, int dy );
 
 } // namespace suave
 
