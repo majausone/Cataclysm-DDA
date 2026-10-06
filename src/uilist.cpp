@@ -7,6 +7,7 @@
 #include <iterator>
 #include <memory>
 #include <set>
+#include <sstream>
 
 #include "avatar.h"
 #include "cached_options.h" // IWYU pragma: keep
@@ -19,6 +20,8 @@
 #include "output.h"
 #include "sdltiles.h"
 #include "input_popup.h"
+#include "interfaz.h"
+#include "json.h"
 #include "translations.h"
 #include "ui_manager.h"
 #include "cata_imgui.h"
@@ -898,6 +901,58 @@ shared_ptr_fast<uilist_impl> uilist::query( bool loop, int timeout, bool allow_u
     }
 #endif
     if( !query_setup() ) {
+        return nullptr;
+    }
+    // con la interfaz web, la lista la pinta la página (como en Android, con su menú nativo): aquí se espera a que
+    // se elija ahí o con las teclas de siempre, sin pintar la del juego
+    if( loop && interfaz::activa() ) {
+        // (las teclas y lo que devuelve cada opción, como al pintarla)
+        setup();
+        std::ostringstream s;
+        JsonOut j( s );
+        j.start_object();
+        j.member( "titulo", remove_color_tags( title ) );
+        j.member( "texto", remove_color_tags( text ) );
+        j.member( "cancelable", allow_cancel );
+        j.member( "elegida", selected );
+        j.member( "opciones" );
+        j.start_array();
+        for( const uilist_entry &e : entries ) {
+            j.start_object();
+            j.member( "texto", remove_color_tags( e.txt ) );
+            j.member( "activa", e.enabled );
+            if( !e.ctxt.empty() ) {
+                j.member( "extra", remove_color_tags( e.ctxt ) );
+            }
+            if( desc_enabled && !e.desc.empty() ) {
+                j.member( "desc", remove_color_tags( e.desc ) );
+            }
+            if( e.hotkey.has_value() && e.hotkey.value() != input_event() ) {
+                j.member( "tecla", e.hotkey->short_description() );
+            }
+            j.end_object();
+        }
+        j.end_array();
+        j.end_object();
+        interfaz::abrir_lista( s.str() );
+        do {
+            query_once( ctxt, 50, allow_unfiltered_hotkeys );
+            int i = 0;
+            if( ret == UILIST_WAIT_INPUT && interfaz::tomar_eleccion( i ) ) {
+                if( i < 0 ) {
+                    if( allow_cancel ) {
+                        ret = UILIST_CANCEL;
+                    }
+                } else if( i < static_cast<int>( entries.size() ) && ( entries[i].enabled || allow_disabled ) ) {
+                    selected = i;
+                    ret = entries[i].retval;
+                    if( callback != nullptr ) {
+                        callback->confirm( this );
+                    }
+                }
+            }
+        } while( ret == UILIST_WAIT_INPUT );
+        interfaz::cerrar_lista();
         return nullptr;
     }
     shared_ptr_fast<uilist_impl> ui = create_or_get_ui();
