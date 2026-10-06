@@ -35,6 +35,7 @@
 #include "cursesport.h" // IWYU pragma: keep
 #include "string_formatter.h"
 #include "string_input_popup.h"
+#include "simulacion.h"
 #include "translations.h"
 #include "ui_manager.h"
 #include "sdl_gamepad.h"
@@ -482,6 +483,7 @@ const std::string &input_context::handle_input( const int timeout )
     next_action.type = input_event_t::error;
     const std::string *result = &CATA_ERROR;
     while( true ) {
+        simulacion::latido();
 
         next_action = inp_mngr.get_input_event( preferred_keyboard_mode );
         if( next_action.type == input_event_t::timeout ) {
