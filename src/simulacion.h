@@ -9,13 +9,14 @@
 //      CDDA_SIM_MODO=mono: teclas al azar (andar, inventario, comer, hablar, fabricar, mirar...), con los menús
 //      que abran, y Escape o Enter de vez en cuando; con CDDA_SIM_SEMILLA se repite la misma tanda;
 //      CDDA_SIM_MODO=andar: una dirección sin parar (cambia si se choca) y cada segundo, cuántas casillas;
-//  - un vigilante (otro hilo) distingue un CUELGUE (el juego deja de mirar el teclado: un bucle sin fin o algo
+//  - un vigilante (otro hilo) distingue un CUELGUE (60 s sin mirar el teclado: un bucle sin fin o algo
 //    que no acaba) de un ATASCO (mira el teclado pero el turno no avanza ni con Escape: un menú que no se cierra);
 //  - apunta en el fichero, una línea por cosa: las teclas con su turno (para reproducirlo), el estado cada
 //    10 s, y al final FIN, CUELGUE, ATASCO o MUERTO;
 //  - con CDDA_SIM_NPC, pone un superviviente al lado del jugador cada 30 s (para probar el diálogo);
 //  - con CDDA_SIM_GUARDAR, un guardado rápido cada 20 s;
 //  - con CDDA_SIM_VEL (pausa, lento, normal, rapido, max), a esa velocidad (por defecto, max);
+//  - con CDDA_SIM_SIN_TR, sin tiempo real (el juego por turnos de siempre; para ver si un fallo es del tiempo real);
 //  - y se cierra solo a los CDDA_SIM_SEG segundos (300 por defecto). Código de salida: 0 bien, 3 cuelgue, 4 atasco.
 #include <string>
 

@@ -26,6 +26,7 @@
 #include "avatar.h"
 #include "calendar.h"
 #include "game.h"
+#include "options.h"
 #include "piloto.h"
 #include "realtime.h"
 #include "ui_manager.h"
@@ -259,8 +260,8 @@ void jugar()
             escapes = 0;
         }
         // CUELGUE: 20 s sin mirar el teclado
-        if( segundos_desde( t_latido ) > 20 ) {
-            escribir( "CUELGUE 20 s sin mirar el teclado: " + informe() );
+        if( segundos_desde( t_latido ) > 60 ) {
+            escribir( "CUELGUE 60 s sin mirar el teclado: " + informe() );
 #if defined(_WIN32)
             // (con gdb debajo (CDDA_SIM_GDB), se para aquí y gdb saca la pila de todos los hilos: la del juego dice
             // dónde se ha quedado)
@@ -283,6 +284,12 @@ void jugar()
                 std::this_thread::sleep_for( std::chrono::seconds( 2 ) );
                 escribir( "ATASCO el turno no avanza ni con 30 intentos (Escape, a/b/c y Enter, y, espacio): " +
                           informe() );
+#if defined(_WIN32)
+                // (con gdb debajo, la pila del juego dice en qué bucle está)
+                if( IsDebuggerPresent() ) {
+                    DebugBreak();
+                }
+#endif
                 std::_Exit( 4 );
             }
             // (una foto antes de cada intento: fichero-1.png, fichero-2.png...; y al final, fichero-99.png)
@@ -445,6 +452,13 @@ void turno()
     turnos.fetch_add( 1, std::memory_order_relaxed );
     if( guardado_pedido.exchange( false ) ) {
         g->quicksave();
+    }
+    // (CDDA_SIM_SIN_TR: sin tiempo real, el juego por turnos de siempre, para comparar si un fallo es del tiempo real;
+    // con el piloto funciona igual, porque el jugador observador no necesita teclas)
+    static const bool sin_tiempo_real = std::getenv( "CDDA_SIM_SIN_TR" ) != nullptr;
+    if( sin_tiempo_real && get_option<bool>( "REALTIME" ) ) {
+        get_options().get_option( "REALTIME" ).setValue( "false" );
+        escribir( "SIN tiempo real (el juego por turnos de siempre)" );
     }
     // siempre a la velocidad de CDDA_SIM_VEL (por defecto, la máxima; el peligro la baja)
     static const realtime::velocidad vel_sim = std::getenv( "CDDA_SIM_VEL" ) != nullptr ?
