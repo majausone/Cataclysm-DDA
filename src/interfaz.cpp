@@ -331,7 +331,7 @@ std::string estado_json()
     j.member( "pos", std::vector<int> { u.pos_abs().x(), u.pos_abs().y(), u.pos_abs().z() } );
     j.member( "enCamino", u.has_destination() );
     const item_location en_mano = u.get_wielded_item();
-    j.member( "enMano", en_mano ? remove_color_tags( en_mano->tname() ) : std::string() );
+    j.member( "enMano", en_mano ? remove_color_tags( en_mano->tname( 1, false ) ) : std::string() );
     j.member( "enManoTipo", en_mano ? en_mano->typeId().str() : std::string() );
     // (la actividad en curso: fabricar, leer, construir...; con su progreso, para la barra, y si se puede cancelar)
     if( u.activity && !u.activity.is_null() ) {
