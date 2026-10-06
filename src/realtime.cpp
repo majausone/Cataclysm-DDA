@@ -162,8 +162,12 @@ void reloj::fin_de_calculo( double ms_esperando_al_jugador )
     const double ms = std::chrono::duration<double, std::milli>( ahora_() - ultimo_inicio_ ).count() -
                       ms_esperando_al_jugador;
     ms_ultimo_turno = std::max( 0.0, ms );
-    ms_turno_medio = ms_turno_medio <= 0.0 ? ms_ultimo_turno : ms_turno_medio * 0.95 + ms_ultimo_turno *
-                     0.05;
+    // (los primeros turnos no cuentan para la media: el primero lleva dentro generar el mundo)
+    if( turnos <= 5 ) {
+        ms_turno_medio = ms_ultimo_turno;
+    } else {
+        ms_turno_medio = ms_turno_medio * 0.95 + ms_ultimo_turno * 0.05;
+    }
 }
 
 // ------------------------------------------------------------------ el del juego
