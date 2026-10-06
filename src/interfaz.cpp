@@ -568,8 +568,9 @@ static void hacer( const std::string &json )
     o.allow_omitted_members();
     const std::string a = o.get_string( "a", "" );
     if( a == "velocidad" ) {
+        // (el jugador: la pausa o la duración del día; la máxima es solo para las pruebas)
         realtime::poner( static_cast<realtime::velocidad>( std::clamp( o.get_int( "v", 2 ), 0,
-                         realtime::num_velocidades - 1 ) ) );
+                         static_cast<int>( realtime::velocidad::rapido ) ) ) );
         return;
     }
     if( a == "objeto" ) {
