@@ -56,7 +56,7 @@
       fuerza: 'Fuerza', destreza: 'Destreza', inteligencia: 'Inteligencia', percepcion: 'Percepción', habilidades: 'Habilidades', ninguna: 'Ninguna todavía.',
       todo: 'Todo', combate: 'Combate', ambiente: 'Ambiente', sin_mensajes: 'Sin mensajes.',
       ir: 'Ir aquí', abrir: 'Abrir', cerrar_puerta: 'Cerrar', coger: 'Coger', beber_llenar: 'Beber o llenar', pescar: 'Pescar', examinar: 'Examinar',
-      vehiculo: 'Vehículo', hablar: 'Hablar', atacar: 'Atacar', mirar: 'Mirar', objetos: 'objetos',
+      vehiculo: 'Vehículo', hablar: 'Hablar', atacar: 'Atacar', mirar: 'Mirar', objetos: 'objetos', robar: 'Robar', robar_nota: 'Elige qué intentar robar. Si te pillan, se enfadará.',
       coger_titulo: 'Coger del suelo', coger_sel: 'Coger lo marcado', todos: 'Todos', ninguno: 'Ninguno', suelo_vacio: 'No hay nada.',
       el_mundo_sigue: 'El mundo sigue mientras hablas.', adios: 'Despedirse',
       titulo: 'Cataclysm: Dark Days Ahead', subtitulo: 'en tiempo real', nueva: 'Partida nueva', cargar: 'Cargar partida',
@@ -86,7 +86,7 @@
       fuerza: 'Strength', destreza: 'Dexterity', inteligencia: 'Intelligence', percepcion: 'Perception', habilidades: 'Skills', ninguna: 'None yet.',
       todo: 'All', combate: 'Combat', ambiente: 'Ambient', sin_mensajes: 'No messages.',
       ir: 'Go here', abrir: 'Open', cerrar_puerta: 'Close', coger: 'Pick up', beber_llenar: 'Drink or fill', pescar: 'Fish', examinar: 'Examine',
-      vehiculo: 'Vehicle', hablar: 'Talk', atacar: 'Attack', mirar: 'Look', objetos: 'items',
+      vehiculo: 'Vehicle', hablar: 'Talk', atacar: 'Attack', mirar: 'Look', objetos: 'items', robar: 'Steal', robar_nota: 'Pick what to try to steal. If you are caught, they will get angry.',
       coger_titulo: 'Pick up from the ground', coger_sel: 'Pick up selected', todos: 'All', ninguno: 'None', suelo_vacio: 'Nothing here.',
       el_mundo_sigue: 'The world goes on while you talk.', adios: 'Leave',
       titulo: 'Cataclysm: Dark Days Ahead', subtitulo: 'in real time', nueva: 'New game', cargar: 'Load game',
@@ -681,8 +681,8 @@
   }
 
   // ------------------------------------------------------------------ menú de una casilla, coger, diálogo
-  const ICONOS_ACCION = { ir: 'fa-person-walking', abrir: 'fa-door-open', cerrar: 'fa-door-closed', coger: 'fa-hand', beber: 'fa-glass-water', pescar: 'fa-fish', examinar: 'fa-magnifying-glass', vehiculo: 'fa-car', hablar: 'fa-comments', atacar: 'fa-hand-fist', mirar: 'fa-eye' };
-  const NOMBRE_ACCION = { ir: 'ir', abrir: 'abrir', cerrar: 'cerrar_puerta', coger: 'coger', beber: 'beber_llenar', pescar: 'pescar', examinar: 'examinar', vehiculo: 'vehiculo', hablar: 'hablar', atacar: 'atacar', mirar: 'mirar' };
+  const ICONOS_ACCION = { ir: 'fa-person-walking', abrir: 'fa-door-open', cerrar: 'fa-door-closed', coger: 'fa-hand', beber: 'fa-glass-water', pescar: 'fa-fish', examinar: 'fa-magnifying-glass', vehiculo: 'fa-car', hablar: 'fa-comments', atacar: 'fa-hand-fist', mirar: 'fa-eye', robar: 'fa-user-secret' };
+  const NOMBRE_ACCION = { ir: 'ir', abrir: 'abrir', cerrar: 'cerrar_puerta', coger: 'coger', beber: 'beber_llenar', pescar: 'pescar', examinar: 'examinar', vehiculo: 'vehiculo', hablar: 'hablar', atacar: 'atacar', mirar: 'mirar', robar: 'robar' };
   const menuCasilla = crear(`<div id="menu-casilla" class="ui oculto"></div>`);
   const cerrarMenuCasilla = () => menuCasilla.classList.add('oculto');
   function abrirMenuCasilla(cx, cy, cas) {
@@ -694,6 +694,7 @@
       b.onclick = () => {
         cerrarMenuCasilla();
         if (a.id === 'coger') abrirCoger(cas.dx, cas.dy);
+        else if (a.id === 'robar') abrirRobar(cas.dx, cas.dy);
         else ordenar({ a: a.id, dx: cas.dx, dy: cas.dy });
         document.getElementById('canvas').focus();
       };
@@ -730,6 +731,24 @@
     pie.append(todos, ninguno, coger);
     ventanaCoger.classList.remove('oculto');
   }
+  // robar: lo que lleva el NPC (salvo lo puesto y lo que empuña); se elige y se intenta
+  function abrirRobar(dx, dy) {
+    const r = json('cdda_ui_robo', dx, dy);
+    if (!r) return;
+    $('.titulo', ventanaObjeto).textContent = `${T('robar')} · ${limpio(r.npc)}`;
+    const cu = $('.cuerpo', ventanaObjeto);
+    cu.innerHTML = ''; $('.pie', ventanaObjeto).innerHTML = '';
+    cu.appendChild(crear(`<div class="descripcion">${T('robar_nota')}</div>`));
+    for (const o of r.objetos) {
+      const f = crear(`<div class="fila-icono"><span class="nombre">${esc(o.nombre)}</span></div>`);
+      f.prepend(marco(o.tipo, 'item', o.variante, 28));
+      f.onclick = () => { ordenar({ a: 'robar', dx, dy, id: o.id }); ventanaObjeto.classList.add('oculto'); };
+      cu.appendChild(f);
+    }
+    if (!r.objetos.length) cu.appendChild(crear(`<div class="vacio">${T('suelo_vacio')}</div>`));
+    ventanaObjeto.classList.remove('oculto');
+  }
+
   // el diálogo: el mundo sigue mientras se habla
   const dialogo = crear(`<div id="dialogo" class="ventana ui oculto"><div class="cabeza"><i class="fa-solid fa-comments"></i><span class="titulo"></span><span class="vivo"></span><button class="cerrar"><i class="fa-solid fa-xmark"></i></button></div><div class="historia"></div><div class="respuestas"></div></div>`);
   $('.cerrar', dialogo).onclick = () => ordenar({ a: 'cerrar_dialogo' });
