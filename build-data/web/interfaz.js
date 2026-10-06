@@ -52,23 +52,16 @@
       <div class="fila"><span class="hora">--:--</span><span class="fecha"></span>
         <button class="plegar" title="Plegar"><i class="fa-solid fa-chevron-up"></i></button></div>
       <div class="clima"></div>
-      <div class="velocidades plegable"></div>
       <div class="necesidades plegable"></div>
       <div class="cuerpo plegable"></div>
       <div class="mano plegable"></div>
     </div>`);
-  VELOCIDADES.forEach(([ico, txt], i) => {
-    const b = crear(`<button title="${txt}">${ico ? `<i class="fa-solid ${ico}"></i>` : txt.replace('Día ', '')}</button>`);
-    b.onclick = () => { ponerVelocidad(i); pausadoPorPanel = false; };
-    $('.velocidades', hud).appendChild(b);
-  });
   $('.plegar', hud).onclick = () => hud.classList.toggle('plegado');
 
   function pintarHud(e) {
     $('.hora', hud).textContent = e.hora.replace(/:\d\d(\s?[AP]M)$/, '$1');
     $('.fecha', hud).textContent = `Día ${e.dia} de ${ESTACIONES[e.estacion] || e.estacion}`;
     $('.clima', hud).innerHTML = `<i class="fa-solid ${e.exterior ? 'fa-cloud-sun' : 'fa-house'}"></i> <span style="color:${color(e.tiempoColor)}">${esc(TIEMPOS[e.tiempo] || e.tiempo)}</span> · ${Math.round(e.temperaturaC)} °C${e.exterior ? '' : ' fuera'}`;
-    [...$('.velocidades', hud).children].forEach((b, i) => b.classList.toggle('activa', i === e.vel));
     $('.necesidades', hud).innerHTML = e.necesidades.map((n) => `
       <i class="fa-solid ${ICONOS[n.id] || 'fa-circle'}" title="${esc(n.nombre)}"></i>
       <div class="necesidad"><div class="rotulo"><span>${esc(n.nombre)}</span><span style="color:${color(n.color)}">${esc(textoNecesidad(n))}</span></div>
@@ -135,7 +128,6 @@
   const panel = crear(`<div id="panel" class="ui oculto">
       <div class="pestanas">${PESTANAS.map(([id, n, i]) => `<button data-p="${id}"><i class="fa-solid ${i}"></i> ${n}</button>`).join('')}
         <button class="cerrar" title="Cerrar (Esc)"><i class="fa-solid fa-xmark"></i></button></div>
-      <div class="pausado"><i class="fa-solid fa-pause"></i> El juego está en pausa mientras miras el menú.</div>
       <div class="contenido"></div></div>`);
   let pestana = 'inventario', velAntes = 2, pausadoPorPanel = false, ultimoEstado = null;
   panel.querySelectorAll('.pestanas button[data-p]').forEach((b) => b.onclick = () => abrirPestana(b.dataset.p));
@@ -149,15 +141,12 @@
   function abrirPanel(p) {
     if (!listo()) return;
     if (panel.classList.contains('oculto')) {
-      velAntes = ultimoEstado ? ultimoEstado.vel : 2;
-      if (velAntes !== 0) { ponerVelocidad(0); pausadoPorPanel = true; }
     }
     panel.classList.remove('oculto');
     abrirPestana(p || pestana);
   }
   function cerrarPanel() {
     panel.classList.add('oculto');
-    if (pausadoPorPanel) { ponerVelocidad(velAntes); pausadoPorPanel = false; }
     document.getElementById('canvas').focus();
   }
   // una orden que se hace con el juego en marcha (fabricar, comer...): se cierra el panel
@@ -332,6 +321,37 @@
     const cas = json('cdda_ui_casilla', pos.dx, pos.dy);
     if (cas && cas.acciones && cas.acciones.length) abrirMenuCasilla(e.clientX, e.clientY, cas); else cerrarMenuCasilla();
   }
+
+  // --- andar con las flechas (o el teclado numérico): mientras estén pulsadas, el juego da un paso cada vez que le
+  // toca al jugador (orden «mantener»), sin depender de la repetición de teclas del navegador. Dos flechas a la vez,
+  // en diagonal. Con un menú del juego abierto, las teclas son del menú.
+  const DIRECCIONES = {
+    ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+    Numpad8: [0, -1], Numpad2: [0, 1], Numpad4: [-1, 0], Numpad6: [1, 0],
+    Numpad7: [-1, -1], Numpad9: [1, -1], Numpad1: [-1, 1], Numpad3: [1, 1],
+  };
+  const pulsadas = new Set();
+  let direccionEnviada = '0,0';
+  function enviarDireccion() {
+    let dx = 0, dy = 0;
+    for (const k of pulsadas) { const [x, y] = DIRECCIONES[k]; dx += x; dy += y; }
+    dx = Math.max(-1, Math.min(1, dx)); dy = Math.max(-1, Math.min(1, dy));
+    const d = `${dx},${dy}`;
+    if (d === direccionEnviada) return;
+    direccionEnviada = d;
+    ordenar({ a: 'mantener', dx, dy });
+  }
+  function teclaDireccion(e) {
+    if (!DIRECCIONES[e.code] || !listo() || !montado) return;
+    if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+    if (ventanas() > 1) { if (pulsadas.size) { pulsadas.clear(); enviarDireccion(); } return; }
+    e.preventDefault(); e.stopPropagation();
+    if (e.type === 'keydown') pulsadas.add(e.code); else pulsadas.delete(e.code);
+    enviarDireccion();
+  }
+  window.addEventListener('keydown', teclaDireccion, true);
+  window.addEventListener('keyup', teclaDireccion, true);
+  window.addEventListener('blur', () => { pulsadas.clear(); enviarDireccion(); });
 
   // --- arranque: cuando hay partida, se monta y se refresca solo
   function montar() {
