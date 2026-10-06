@@ -27,6 +27,8 @@ point camara( int ancho_casilla, int alto_casilla );
 bool hay_movimiento();
 // al empezar cada imagen: olvida a las criaturas que ya no se ven
 void nueva_imagen();
+// cuántas imágenes se han pintado
+int imagenes();
 
 } // namespace suave
 
