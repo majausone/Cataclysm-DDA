@@ -108,9 +108,9 @@ TEST_CASE( "realtime_falls_behind_without_debt_and_says_so", "[realtime]" )
     CHECK( lentos >= 190 );
     CHECK( lentos <= 201 );
     CHECK( r.retrasado );
-    // y cuando vuelve a ir ligero, a x72 sin ráfaga para «recuperar» lo perdido (como mucho los 50 ms del margen)
+    // y cuando vuelve a ir ligero, a x72 sin ráfaga para «recuperar» lo perdido (como mucho los 100 ms del margen)
     const int ligeros = turnos_en( r, tf, 2.0, 1.0 );
-    CHECK( ligeros <= 2 * 72 + 5 );
+    CHECK( ligeros <= 2 * 72 + 8 );
     CHECK( ligeros >= 2 * 72 - 2 );
     CHECK_FALSE( r.retrasado );
 }
