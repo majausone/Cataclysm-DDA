@@ -1,4 +1,5 @@
 #include "game.h" // IWYU pragma: associated
+#include "realtime.h"
 
 #include <algorithm>
 #include <chrono>
@@ -197,7 +198,8 @@ class user_turn
         }
 
         bool has_timeout_elapsed() {
-            return moves_elapsed() > 100;
+            // tiempo real: se acaba al llegar el plazo del turno (sin él, lo de antes: TURN_DURATION)
+            return realtime::plazo_vencido( moves_elapsed() > 100 );
         }
 
         int moves_elapsed() {
@@ -271,6 +273,13 @@ input_context game::get_player_input( std::string &action )
         ctxt = get_default_mode_input_context();
     }
 
+    // tiempo real: lo que pulsó mientras esperaba a que le tocara, ahora que le toca
+    if( uquit != QUIT_WATCH && realtime::hay_accion_pendiente() ) {
+        action = realtime::tomar_accion_pendiente();
+        return ctxt;
+    }
+    realtime::empieza_espera_jugador();
+
     here.update_visibility_cache( pos.z() );
     const visibility_variables &cache = here.get_visibility_variables_cache();
     const level_cache &map_cache = here.get_cache_ref( pos.z() );
@@ -327,7 +336,7 @@ input_context game::get_player_input( std::string &action )
         wPrint.wtype = weather.weather_id;
         wPrint.vdrops.clear();
 
-        ctxt.set_timeout( 125 );
+        ctxt.set_timeout( realtime::ms_espera_teclado() );
 
         shared_ptr_fast<game::draw_callback_t> animation_cb =
         make_shared_fast<game::draw_callback_t>( [&]() {
@@ -457,18 +466,21 @@ input_context game::get_player_input( std::string &action )
             }
 
             ui_manager::redraw_invalidated();
+            ctxt.set_timeout( realtime::ms_espera_teclado() );
         } while( handle_mouseview( ctxt, action ) && uquit != QUIT_WATCH
                  && ( action != "TIMEOUT" || !current_turn.has_timeout_elapsed() ) );
         ctxt.reset_timeout();
     } else {
-        ctxt.set_timeout( 125 );
+        ctxt.set_timeout( realtime::ms_espera_teclado() );
         while( handle_mouseview( ctxt, action ) ) {
             if( action == "TIMEOUT" && current_turn.has_timeout_elapsed() ) {
                 break;
             }
+            ctxt.set_timeout( realtime::ms_espera_teclado() );
         }
         ctxt.reset_timeout();
     }
+    realtime::acaba_espera_jugador();
 
     return ctxt;
 }
@@ -3189,6 +3201,11 @@ bool game::handle_action()
     } else {
         // No auto-move, ask player for input
         ctxt = get_player_input( action );
+        // tiempo real: cambiar la velocidad o pausar no gasta el turno
+        if( realtime::manejar_accion( action ) ) {
+            realtime::mostrar_estado();
+            return false;
+        }
     }
 
     // Remove asynchronous animations if any action taken before the input timeout

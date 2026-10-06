@@ -1,4 +1,5 @@
 #include "do_turn.h"
+#include "realtime.h"
 
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
@@ -528,6 +529,9 @@ bool game::do_turn()
     }
 
     drain_renderer_recovery();
+
+    // tiempo real: el turno empieza cuando le toca (lee el teclado mientras espera)
+    realtime::esperar_turno();
 
     weather_manager &weather = get_weather();
 

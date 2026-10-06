@@ -1,4 +1,5 @@
 #include "widget.h"
+#include "realtime.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1318,6 +1319,10 @@ std::string widget::color_text_function_string( const avatar &ava, unsigned int 
             break;
         case widget_var::time_text:
             desc.first = display::time_string( ava );
+            // tiempo real: la velocidad, siempre a la vista
+            if( realtime::activo() ) {
+                desc.first += "  " + realtime::texto_estado();
+            }
             break;
         case widget_var::veh_azimuth_text:
             desc.first = display::vehicle_azimuth_text( ava );

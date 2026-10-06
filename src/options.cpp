@@ -1698,6 +1698,29 @@ void options_manager::add_options_general()
 
     add_empty_line();
 
+    add( "REALTIME", "general", to_translation( "Real time" ),
+         to_translation( "If true, the clock runs on its own: turns pass at the chosen speed without waiting for you, and if you have not pressed anything when your turn ends you wait that turn.  Long activities follow the clock too.  Menus pause it." ),
+         true
+       );
+
+    add( "REALTIME_SPEED", "general", to_translation( "Real time: starting speed" ),
+         to_translation( "Turns per real second when the game starts.  x1 is real time (1 turn = 1 second); x72 is a day in 20 minutes.  Change it while playing with F6 / F7 (or }) and pause with F8." ),
+    {
+        { "pausa", to_translation( "Pause" ) }, { "1", to_translation( "x1" ) }, { "3", to_translation( "x3" ) },
+        { "10", to_translation( "x10" ) }, { "30", to_translation( "x30" ) }, { "72", to_translation( "x72" ) },
+        { "max", to_translation( "Max" ) }
+    },
+    "1"
+       );
+
+    add( "REALTIME_DANGER", "general", to_translation( "Real time: on danger" ),
+         to_translation( "What the clock does when a new danger comes into view (the same detection as safe mode): slow down to x1, pause, or nothing." ),
+    { { "x1", to_translation( "Slow down to x1" ) }, { "pause", to_translation( "Pause" ) }, { "nothing", to_translation( "Nothing" ) } },
+    "x1"
+       );
+
+    add_empty_line();
+
     add( "TURN_DURATION", "general", to_translation( "Realtime turn progression" ),
          to_translation( "If higher than 0, monsters will take periodic gameplay turns.  This value is the delay between each turn, in seconds.  Works best with Safe Mode disabled.  0 = disabled." ),
          0.0, 10.0, 0.0, 0.05
