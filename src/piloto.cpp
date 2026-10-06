@@ -55,6 +55,8 @@ int elegido = 0;          // a quién enseñan los paneles (0: al personaje)
 std::optional<bool> pedido; // encender o apagar en el siguiente turno
 std::string motivo;          // por qué se apagó solo
 std::atomic<bool> npc_pedido{ false };
+std::atomic<int> carga_pedida{ 0 };
+const mtype_id mon_zombie_carga( "mon_zombie" );
 
 std::string escapar( const std::string &s )
 {
@@ -210,6 +212,11 @@ void pedir_npc_al_lado()
     npc_pedido = true;
 }
 
+void pedir_carga( int n )
+{
+    carga_pedida = n;
+}
+
 std::string motivo_apagado()
 {
     return motivo;
@@ -255,6 +262,13 @@ void turno()
 {
     if( npc_pedido.exchange( false ) ) {
         poner_npc_al_lado();
+    }
+    if( const int n = carga_pedida.exchange( 0 ) ) {
+        // (para medir: el jugador, intocable, que si no le matan en seguida y no da tiempo)
+        get_avatar().set_mutation( trait_id( "DEBUG_NODMG" ) );
+        for( int i = 0; i < n; i++ ) {
+            g->place_critter_around( mon_zombie_carga, get_avatar().pos_bub(), 30 );
+        }
     }
     if( pedido ) {
         const bool encender = *pedido;
@@ -424,6 +438,11 @@ extern "C" {
     EMSCRIPTEN_KEEPALIVE void cdda_sim_npc_al_lado()
     {
         piloto::pedir_npc_al_lado();
+    }
+    // n zombis alrededor (para medir en una zona cargada)
+    EMSCRIPTEN_KEEPALIVE void cdda_sim_carga( int n )
+    {
+        piloto::pedir_carga( n );
     }
 }
 #endif
