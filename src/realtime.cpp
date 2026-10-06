@@ -539,17 +539,24 @@ void mantener_direccion( int dx, int dy )
     dir_y = std::clamp( dy, -1, 1 );
 }
 
-bool pintar_si_toca()
+int pintar_si_toca()
 {
     // (solo parado en una espera, la del tic o la de la tecla del jugador, nunca a mitad de un tic ni de un menú)
-    if( !activo() || test_mode || ( !en_espera_de_tic && !esperando_jugador ) ) {
-        return false;
+    // devuelve 1 si ha pintado; si no, por qué: 2 no está esperando, 3 nada se mueve, 4 hace poco de la última
+    if( !activo() || test_mode ) {
+        return 0;
     }
-    if( !suave::hay_movimiento() || suave::ms_desde_imagen() < 8 ) {
-        return false;
+    if( !en_espera_de_tic && !esperando_jugador ) {
+        return 2;
+    }
+    if( !suave::hay_movimiento() ) {
+        return 3;
+    }
+    if( suave::ms_desde_imagen() < 8 ) {
+        return 4;
     }
     repintar();
-    return true;
+    return 1;
 }
 
 double ms_imagen()
@@ -687,7 +694,7 @@ extern "C" {
     // del juego, que en el navegador duran más de lo pedido (salía una imagen por tic)
     EMSCRIPTEN_KEEPALIVE int cdda_rt_pintar()
     {
-        return realtime::pintar_si_toca() ? 1 : 0;
+        return realtime::pintar_si_toca();
     }
     // lo que tarda en pintarse una imagen del mapa (ms, media)
     EMSCRIPTEN_KEEPALIVE double cdda_rt_ms_imagen()
