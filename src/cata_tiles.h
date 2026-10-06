@@ -1279,6 +1279,15 @@ class cata_tiles
             return has_animated_tiles_;
         }
 
+        // (interfaz web, Encargo 8) el sprite con el que se pinta un id (siguiendo su «looks_like»): índice del de
+        // delante y del de detrás en el tileset, o -1; y las imágenes del tileset (ruta, tamaño de sprite, desde qué
+        // índice y cuántos) para que la página recorte el icono
+        std::pair<int, int> sprite_interfaz( const std::string &id, TILE_CATEGORY category,
+                                             const std::string &variant );
+        const std::vector<atlas_replay_descriptor> &atlas_interfaz() const;
+        int ancho_sprite_interfaz() const;
+        int alto_sprite_interfaz() const;
+
         // True if the minimap rendered critters with blinking beacons.
         bool has_blinking_minimap() const;
 

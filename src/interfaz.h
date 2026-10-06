@@ -4,6 +4,8 @@
 
 #include <string>
 
+class JsonObject;
+
 // La interfaz de la versión web (Encargo 7, B): el enchufe entre el juego y la página. La interfaz va en HTML y
 // JavaScript alrededor del juego (build-data/web/, rama tiempo-real-web), y se cambia sin recompilar.
 //  - Hacia fuera, el estado en JSON: el del personaje para el HUD (hora, tiempo, necesidades, salud por partes, lo
@@ -33,6 +35,25 @@ void orden( const std::string &json );
 void turno();
 // ¿hay interfaz web? (entonces el juego no pinta su barra lateral)
 bool activa();
+
+// --- segunda parte (interfaz_menus.cpp, Encargo 8): los menús como en un videojuego
+// las imágenes del tileset (ruta en el sistema de ficheros del juego, tamaño de sprite, desde qué índice, cuántos)
+std::string atlas_json();
+// los sprites de una lista de cosas: petición [[id, categoría (item, monster, terrain, furniture, overmap,
+// vpart), variante?], ...] -> {"id|cat|variante": [delante, detrás]}
+std::string iconos_json( const std::string &peticion );
+// lo que se lleva, con lo puesto en cada parte del cuerpo y lo que hay dentro de cada bolsa
+std::string equipo_json();
+// una receta: componentes y herramientas (con cuántos tienes), tiempo, habilidad y lo que sale
+std::string receta_json( const std::string &id );
+// lo que hay en el suelo de la casilla (dx, dy), para coger lo que se elija
+std::string suelo_json( int dx, int dy );
+// la conversación en curso (null si no hay)
+std::string dialogo_json();
+// el mapa del mundo alrededor (radio en casillas del mapa grande)
+std::string mapa_json( int radio );
+bool hacer_menus( const std::string &a, JsonObject &o );
+void turno_menus();
 
 } // namespace interfaz
 

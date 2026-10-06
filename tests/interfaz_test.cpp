@@ -11,6 +11,9 @@
 #include "json_loader.h"
 #include "map.h"
 #include "map_helpers.h"
+#include "npc.h"
+#include "recipe.h"
+#include "recipe_dictionary.h"
 #include "player_helpers.h"
 #include "type_id.h"
 
@@ -18,6 +21,7 @@
 // las órdenes que llegan de ella.
 
 static const itype_id itype_apple( "apple" );
+static const itype_id itype_backpack( "backpack" );
 static const itype_id itype_test_rock( "test_rock" );
 static const ter_str_id ter_t_door_c( "t_door_c" );
 static const ter_str_id ter_t_door_o( "t_door_o" );
@@ -132,4 +136,66 @@ TEST_CASE( "interfaz_recetas_personaje_y_mensajes", "[interfaz]" )
     m.allow_omitted_members();
     CHECK( m.has_array( "mensajes" ) );
     CHECK( json_loader::from_string( interfaz::construcciones_json() ).test_array() );
+}
+
+TEST_CASE( "interfaz_menus_equipo_receta_suelo_y_mapa", "[interfaz]" )
+{
+    clear_map();
+    clear_avatar();
+    avatar &u = get_avatar();
+    map &here = get_map();
+    // el equipo: objetos con su tipo (para el icono) y lo que se puede hacer
+    u.i_add( item( itype_apple ) );
+    JsonObject eq = json_loader::from_string( interfaz::equipo_json() ).get_object();
+    eq.allow_omitted_members();
+    CHECK( eq.get_array( "objetos" ).size() >= 1 );
+    // una receta cualquiera: componentes, herramientas y tiempo
+    const recipe &r = recipe_dict.begin()->second;
+    JsonObject re = json_loader::from_string( interfaz::receta_json( r.ident().str() ) ).get_object();
+    re.allow_omitted_members();
+    CHECK( re.has_string( "tiempo" ) );
+    CHECK( re.has_array( "componentes" ) );
+    // el suelo: una piedra a los pies, y cogerla con una orden (con una mochila donde meterla)
+    clear_avatar();
+    u.wear_item( item( itype_backpack ), false );
+    here.add_item( u.pos_bub(), item( itype_test_rock ) );
+    JsonObject su = json_loader::from_string( interfaz::suelo_json( 0, 0 ) ).get_object();
+    su.allow_omitted_members();
+    REQUIRE( su.get_array( "objetos" ).size() == 1 );
+    interfaz::orden( "{\"a\":\"coger_objetos\",\"dx\":0,\"dy\":0,\"objetos\":[{\"indice\":0,\"cantidad\":0}]}" );
+    interfaz::turno();
+    REQUIRE( u.activity );
+    for( int i = 0; i < 10 && u.activity; i++ ) {
+        u.set_moves( u.get_speed() );
+        u.activity.do_turn( u );
+    }
+    CAPTURE( here.i_at( u.pos_bub() ).size() );
+    CAPTURE( u.activity.id().str() );
+    CAPTURE( u.get_wielded_item() ? u.get_wielded_item()->tname() : std::string( "nada" ) );
+    CHECK( u.has_amount( itype_test_rock, 1 ) );
+    // el mapa del mundo: (2r+1)^2 casillas
+    JsonObject ma = json_loader::from_string( interfaz::mapa_json( 5 ) ).get_object();
+    ma.allow_omitted_members();
+    CHECK( ma.get_array( "casillas" ).size() == 121 );
+}
+
+TEST_CASE( "interfaz_dialogo_sin_parar_el_mundo", "[interfaz]" )
+{
+    clear_map();
+    clear_avatar();
+    avatar &u = get_avatar();
+    spawn_npc( u.pos_bub().xy() + point_rel_ms::east, "test_talker" );
+    CHECK( interfaz::dialogo_json() == "null" );
+    interfaz::orden( "{\"a\":\"hablar\",\"dx\":1,\"dy\":0}" );
+    interfaz::turno();
+    const std::string s = interfaz::dialogo_json();
+    CAPTURE( s );
+    JsonObject d = json_loader::from_string( s ).get_object();
+    d.allow_omitted_members();
+    CHECK( !d.get_string( "linea" ).empty() );
+    CHECK( d.get_array( "respuestas" ).size() >= 1 );
+    // cerrarla
+    interfaz::orden( "{\"a\":\"cerrar_dialogo\"}" );
+    interfaz::turno();
+    CHECK( interfaz::dialogo_json() == "null" );
 }

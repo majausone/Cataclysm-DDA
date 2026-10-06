@@ -590,6 +590,10 @@ static void hacer( const std::string &json )
     JsonObject o = v.get_object();
     o.allow_omitted_members();
     const std::string a = o.get_string( "a", "" );
+    // (las de los menús nuevos: coger lo elegido, el diálogo sin parar el mundo...)
+    if( hacer_menus( a, o ) ) {
+        return;
+    }
     if( a == "velocidad" ) {
         // (el jugador: la pausa o la duración del día; la máxima es solo para las pruebas)
         realtime::poner( static_cast<realtime::velocidad>( std::clamp( o.get_int( "v", 2 ), 0,
@@ -682,6 +686,7 @@ static void hacer( const std::string &json )
 
 void turno()
 {
+    turno_menus();
     while( !ordenes().empty() ) {
         const std::string json = ordenes().front();
         ordenes().pop_front();
@@ -760,6 +765,54 @@ extern "C" {
     {
         n = std::clamp( n, 0, static_cast<int>( sizeof( bufer_ordenes ) ) );
         interfaz::orden( std::string( bufer_ordenes, static_cast<size_t>( n ) ) );
+    }
+    // (Encargo 8) las de los menús nuevos; las que reciben texto lo leen del búfer (n: su longitud)
+    static std::string bufer_texto( int n )
+    {
+        n = std::clamp( n, 0, static_cast<int>( sizeof( bufer_ordenes ) ) );
+        return std::string( bufer_ordenes, static_cast<size_t>( n ) );
+    }
+    EMSCRIPTEN_KEEPALIVE const char *cdda_ui_atlas()
+    {
+        static std::string s;
+        s = interfaz::atlas_json();
+        return s.c_str();
+    }
+    EMSCRIPTEN_KEEPALIVE const char *cdda_ui_iconos( int n )
+    {
+        static std::string s;
+        s = interfaz::iconos_json( bufer_texto( n ) );
+        return s.c_str();
+    }
+    EMSCRIPTEN_KEEPALIVE const char *cdda_ui_equipo()
+    {
+        static std::string s;
+        s = interfaz::equipo_json();
+        return s.c_str();
+    }
+    EMSCRIPTEN_KEEPALIVE const char *cdda_ui_receta( int n )
+    {
+        static std::string s;
+        s = interfaz::receta_json( bufer_texto( n ) );
+        return s.c_str();
+    }
+    EMSCRIPTEN_KEEPALIVE const char *cdda_ui_suelo( int dx, int dy )
+    {
+        static std::string s;
+        s = interfaz::suelo_json( dx, dy );
+        return s.c_str();
+    }
+    EMSCRIPTEN_KEEPALIVE const char *cdda_ui_dialogo()
+    {
+        static std::string s;
+        s = interfaz::dialogo_json();
+        return s.c_str();
+    }
+    EMSCRIPTEN_KEEPALIVE const char *cdda_ui_mapa( int radio )
+    {
+        static std::string s;
+        s = interfaz::mapa_json( radio );
+        return s.c_str();
     }
 }
 #endif
