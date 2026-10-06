@@ -305,6 +305,7 @@ std::string estado_json()
     j.member( "exterior", get_map().is_outside( u.pos_bub() ) );
     const item_location en_mano = u.get_wielded_item();
     j.member( "enMano", en_mano ? remove_color_tags( en_mano->tname() ) : std::string() );
+    j.member( "enManoTipo", en_mano ? en_mano->typeId().str() : std::string() );
     // (la actividad en curso: fabricar, leer, construir...; con su progreso, para la barra, y si se puede cancelar)
     if( u.activity && !u.activity.is_null() ) {
         j.member( "actividad" );
@@ -451,6 +452,7 @@ std::string recetas_json()
         }
         j.start_object();
         j.member( "id", r->ident().str() );
+        j.member( "resultado", r->result().str() );
         j.member( "nombre", r->result_name() );
         j.member( "categoria", r->category.str() );
         j.member( "subcategoria", r->subcategory );
@@ -489,6 +491,7 @@ std::string recetas_json()
         }
         j.start_object();
         j.member( "id", r.ident().str() );
+        j.member( "resultado", r.result().str() );
         j.member( "nombre", r.result_name() );
         j.member( "categoria", r.category.str() );
         j.member( "requisito", requisito );
@@ -736,6 +739,17 @@ static void hacer( const std::string &json )
     }
     if( a == "idioma" ) {
         poner_idioma( o.get_string( "v", "es" ) );
+        return;
+    }
+    // guardar la partida; y guardar y salir al menú principal (la página enseña su pantalla de inicio)
+    if( a == "guardar" ) {
+        g->quicksave();
+        return;
+    }
+    if( a == "salir" ) {
+        if( g->save() ) {
+            g->uquit = QUIT_SAVED;
+        }
         return;
     }
     if( a == "cancelar_actividad" ) {
