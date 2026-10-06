@@ -278,6 +278,11 @@ input_context game::get_player_input( std::string &action )
         action = realtime::tomar_accion_pendiente();
         return ctxt;
     }
+    // (a las velocidades altas, la mayoría de los turnos pasan sin mirar el teclado: ver realtime::saltar_espera)
+    if( uquit != QUIT_WATCH && realtime::saltar_espera() ) {
+        action = "TIMEOUT";
+        return ctxt;
+    }
     realtime::empieza_espera_jugador();
 
     here.update_visibility_cache( pos.z() );
