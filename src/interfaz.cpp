@@ -202,7 +202,19 @@ std::string estado_json()
     j.member( "temperaturaC", units::to_celsius( get_weather().temperature ) );
     j.member( "exterior", get_map().is_outside( u.pos_bub() ) );
     const item_location en_mano = u.get_wielded_item();
-    j.member( "enMano", en_mano ? en_mano->tname() : std::string( "manos vacías" ) );
+    j.member( "enMano", en_mano ? remove_color_tags( en_mano->tname() ) : std::string() );
+    // (la actividad en curso: fabricar, leer, construir...; con su progreso, para la barra, y si se puede cancelar)
+    if( u.activity && !u.activity.is_null() ) {
+        j.member( "actividad" );
+        j.start_object();
+        j.member( "id", u.activity.id().str() );
+        j.member( "nombre", remove_color_tags( u.activity.get_verb().translated() ) );
+        const int total = u.activity.moves_total;
+        j.member( "progreso", total > 0 ? std::clamp( 1.0 - static_cast<double>( u.activity.moves_left ) / total, 0.0,
+                  1.0 ) : -1.0 );
+        j.member( "cancelable", u.activity.is_interruptible() );
+        j.end_object();
+    }
     j.member( "necesidades" );
     j.start_array();
     necesidad( j, "hambre", "Hambre", display::hunger_text_color( u ),
@@ -556,6 +568,17 @@ std::string casilla_en_pixel_json( int px, int py )
 
 void orden( const std::string &json )
 {
+    // (la tecla mantenida se apunta al momento: es solo un estado que se mira cuando le toca al jugador)
+    if( json.find( "\"a\":\"mantener\"" ) != std::string::npos ) {
+        try {
+            JsonObject o = json_loader::from_string( json ).get_object();
+            o.allow_omitted_members();
+            realtime::mantener_direccion( o.get_int( "dx", 0 ), o.get_int( "dy", 0 ) );
+        } catch( const std::exception & ) {
+            realtime::mantener_direccion( 0, 0 );
+        }
+        return;
+    }
     ordenes().push_back( json );
 }
 
@@ -603,6 +626,12 @@ static void hacer( const std::string &json )
     }
     if( a == "construir" ) {
         construction_menu( false );
+        return;
+    }
+    if( a == "cancelar_actividad" ) {
+        if( u.activity ) {
+            u.cancel_activity();
+        }
         return;
     }
     if( a == "mapa" ) {

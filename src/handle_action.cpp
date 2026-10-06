@@ -280,6 +280,14 @@ input_context game::get_player_input( std::string &action )
         action = realtime::tomar_accion_pendiente();
         return ctxt;
     }
+    // (la tecla mantenida: un paso cada vez que le toca, sin esperar a la repetición del navegador)
+    if( uquit != QUIT_WATCH ) {
+        const std::string dir = realtime::accion_direccion();
+        if( !dir.empty() ) {
+            action = dir;
+            return ctxt;
+        }
+    }
     // (a las velocidades altas, la mayoría de los turnos pasan sin mirar el teclado: ver realtime::saltar_espera)
     if( uquit != QUIT_WATCH && realtime::saltar_espera() ) {
         action = "TIMEOUT";

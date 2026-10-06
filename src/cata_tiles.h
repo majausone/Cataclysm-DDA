@@ -1240,6 +1240,10 @@ class cata_tiles
 
         // offset values, in tile coordinates, not pixels
         point o;
+        // (movimiento suave, src/suave.h: el desfase de la cámara, que sigue al jugador, y el de la criatura que se
+        // está pintando)
+        point camara_suave;
+        point desfase_suave;
         // offset for drawing, in pixels.
         point op;
 

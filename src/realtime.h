@@ -123,6 +123,11 @@ void acaba_espera_jugador();
 // una acción del jugador pulsada mientras esperaba su turno: se hace en cuanto le toca
 bool hay_accion_pendiente();
 std::string tomar_accion_pendiente();
+// una dirección mantenida (la tecla sigue pulsada): mientras lo esté, cada vez que al jugador le toca, da un paso
+// hacia allí. Sin fiarse de la repetición de teclas del navegador. (0, 0) es soltarla
+void mantener_direccion( int dx, int dy );
+// la acción de andar hacia la dirección mantenida ("" si no hay)
+std::string accion_direccion();
 // si es una de las acciones del tiempo real (velocidad, pausa, piloto automático), la hace y devuelve true
 bool manejar_accion( const std::string &action );
 
