@@ -428,7 +428,10 @@ void esperar_turno()
             // (las órdenes de la interfaz web, también mientras espera)
             interfaz::turno();
             // (que se vea la velocidad y lo que pasa, de vez en cuando, mientras espera)
-            if( suave::ms_desde_imagen() >= ( suave::hay_movimiento() ? 15 : 250 ) ) {
+            // (el tic manda: solo se pinta si da tiempo antes del siguiente; si no, se pinta con el tic)
+            const int64_t queda = r.ms_hasta_turno();
+            if( suave::ms_desde_imagen() >= ( suave::hay_movimiento() ? 15 : 250 ) &&
+                ( queda < 0 ? false : static_cast<double>( queda ) > ms_imagen_medio + 2.0 ) ) {
                 repintar();
             }
             continue;
