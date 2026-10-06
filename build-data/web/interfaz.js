@@ -867,7 +867,30 @@
     window.addEventListener('blur', () => { pulsadas.clear(); if (enPartida) enviarDireccion(); });
     window.addEventListener('keydown', (e) => {
       if (!enPartida || ventanas() > 1) return;
-      if (e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); panel.classList.contains('oculto') ? abrirPanel() : cerrarPanel(); }
+      if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+      if (e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); panel.classList.contains('oculto') ? abrirPanel() : cerrarPanel(); return; }
+      // las teclas de siempre del juego abren lo nuestro, que no para el mundo (las suyas son menús que lo paran)
+      const atajos = { i: 'inventario', '&': 'fabricar', '*': 'construir', m: 'mapa', '@': 'personaje' };
+      if (atajos[e.key] && !e.ctrlKey && !e.altKey) {
+        e.preventDefault(); e.stopPropagation();
+        if (!panel.classList.contains('oculto') && pestana === atajos[e.key]) cerrarPanel(); else abrirPanel(atajos[e.key]);
+        return;
+      }
+      if (e.key === 'g' && !e.ctrlKey) { e.preventDefault(); e.stopPropagation(); abrirCoger(0, 0); return; }
+      if (e.key === 'C' && !e.ctrlKey) {
+        e.preventDefault(); e.stopPropagation();
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+          const cas = json('cdda_ui_casilla', dx, dy);
+          if (cas && cas.acciones && cas.acciones.some((a) => a.id === 'hablar')) { ordenar({ a: 'hablar', dx, dy }); break; }
+        }
+        return;
+      }
+      if (e.key === 'Escape' && menuCasilla.classList.contains('oculto') && ventanaCoger.classList.contains('oculto') && ventanaObjeto.classList.contains('oculto') && panel.classList.contains('oculto')) {
+        // (el menú de Escape del juego para el mundo: aquí, nuestras opciones)
+        e.preventDefault(); e.stopPropagation();
+        pintarOpciones(); ventanaOpciones.classList.toggle('oculto');
+        return;
+      }
       if (e.key === 'Escape' && (!menuCasilla.classList.contains('oculto') || !ventanaCoger.classList.contains('oculto') || !ventanaObjeto.classList.contains('oculto') || !ventanaOpciones.classList.contains('oculto') || !panel.classList.contains('oculto'))) {
         e.preventDefault(); e.stopPropagation();
         [menuCasilla, ventanaCoger, ventanaObjeto, ventanaOpciones].forEach((x) => x.classList.add('oculto'));
