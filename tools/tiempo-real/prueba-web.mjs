@@ -135,7 +135,10 @@ for (let i = 0; Date.now() - tl < MINUTOS * 60000; i++) {
 }
 const l1 = await estado(), sl = (Date.now() - tl) / 1000;
 r.partida = { minutos: +(sl / 60).toFixed(1), turnos: l1.turno - l0.turno, turnosPorSegundo: +((l1.turno - l0.turno) / sl).toFixed(1), msPorTurno: +l1.msTurno.toFixed(2), hora: l1.hora, vecesParado: quietos };
-comprobar(`${MINUTOS} minutos a x72 sin cuelgues`, l1.turno - l0.turno > 30 * sl && errores.length === 0, r.partida);
+// (sin cuelgues: nunca parado, sin errores, y a buen paso: al menos el 75 % del tope medido, con teclas y menús por medio)
+const tope = Math.max(...Object.values(r.velocidades).map((x) => x.turnosPorSegundo));
+r.partida.tope = tope;
+comprobar(`${MINUTOS} minutos a x72 sin cuelgues`, quietos === 0 && errores.length === 0 && (l1.turno - l0.turno) / sl >= 0.75 * Math.min(72, tope), r.partida);
 await foto('6-partida-larga');
 
 await b.close();
