@@ -540,7 +540,10 @@ bool game::do_turn()
         new_game = false;
         weather.on_game_start();
     } else {
-        gamemode->per_turn();
+        // (sin modo de juego, p. ej. en las pruebas, no hay nada que hacer por turno)
+        if( gamemode ) {
+            gamemode->per_turn();
+        }
         calendar::turn += 1_turns;
     }
     //used for dimension swapping

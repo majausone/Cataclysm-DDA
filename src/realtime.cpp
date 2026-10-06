@@ -6,6 +6,7 @@
 #include <optional>
 
 #include "avatar.h"
+#include "calendar.h"
 #include "cached_options.h"
 #include "game.h"
 #include "input_context.h"
@@ -425,6 +426,26 @@ extern "C" {
     EMSCRIPTEN_KEEPALIVE double cdda_rt_ms_turno()
     {
         return realtime::el_reloj().ms_turno_medio;
+    }
+    EMSCRIPTEN_KEEPALIVE int cdda_rt_retrasado()
+    {
+        return realtime::el_reloj().retrasado ? 1 : 0;
+    }
+    // el turno del juego (desde el principio del calendario) y la hora, para leerlos desde la página
+    EMSCRIPTEN_KEEPALIVE int cdda_turno()
+    {
+        return to_turns<int>( calendar::turn - calendar::turn_zero );
+    }
+    EMSCRIPTEN_KEEPALIVE const char *cdda_hora()
+    {
+        static std::string s;
+        s = to_string_time_of_day( calendar::turn );
+        return s.c_str();
+    }
+    // cuántas ventanas de interfaz hay abiertas (la del juego y los menús encima)
+    EMSCRIPTEN_KEEPALIVE int cdda_ventanas()
+    {
+        return static_cast<int>( ui_adaptor::ui_stack_size() );
     }
 }
 #endif
