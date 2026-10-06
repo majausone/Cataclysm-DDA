@@ -27,6 +27,8 @@ static bool imgui_frame_started = false;
 static bool redraw_in_progress = false;
 static bool showing_debug_message = false;
 static bool restart_redrawing = false;
+// (web) si al acabar de pintar se cede al navegador: ui_manager::ceder_al_pintar
+static bool ceder_tras_pintar = true;
 #if defined( TILES )
 static std::optional<SDL_Rect> prev_clip_rect;
 // renderer_resource_generation() sampled when prev_clip_rect was saved, so the
@@ -514,7 +516,9 @@ void ui_adaptor::redraw_invalidated( )
         }
     } while( restart_redrawing );
 #if defined(EMSCRIPTEN)
-    emscripten_sleep( 1 );
+    if( ceder_tras_pintar ) {
+        emscripten_sleep( 1 );
+    }
 #endif
 
 #if defined(TILES)
@@ -571,6 +575,11 @@ namespace ui_manager
 void invalidate( const rectangle<point> &rect, const bool reenable_uis_below )
 {
     ui_adaptor::invalidate( rect, reenable_uis_below );
+}
+
+void ceder_al_pintar( bool si )
+{
+    ceder_tras_pintar = si;
 }
 
 void redraw()

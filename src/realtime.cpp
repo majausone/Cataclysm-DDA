@@ -562,7 +562,10 @@ int pintar_si_toca()
     if( suave::ms_desde_imagen() < 8 ) {
         return 4;
     }
+    // (desde un fotograma del navegador: sin ceder al acabar, que aquí no hay pila que suspender)
+    ui_manager::ceder_al_pintar( false );
     repintar();
+    ui_manager::ceder_al_pintar( true );
     return 1;
 }
 
