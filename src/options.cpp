@@ -1704,11 +1704,10 @@ void options_manager::add_options_general()
        );
 
     add( "REALTIME_SPEED", "general", to_translation( "Real time: starting speed" ),
-         to_translation( "How long a game day lasts when the game starts.  Each turn is one second of the world; walking, fighting and fire always go at real pace.  Fast speeds everything up (to sleep, travel or wait) and goes back to normal on danger.  Change it while playing with F6 / F7 (or }) and pause with F8." ),
+         to_translation( "How long a game day lasts when the game starts.  Each turn is one second of the world; walking, fighting and fire always go at real pace.  Change it while playing with F6 / F7 (or }) and pause with F8." ),
     {
         { "pausa", to_translation( "Pause" ) }, { "lento", to_translation( "Day in 2 hours" ) },
-        { "normal", to_translation( "Day in 1 hour" ) }, { "rapido", to_translation( "Day in 30 minutes" ) },
-        { "max", to_translation( "Fast (everything)" ) }
+        { "normal", to_translation( "Day in 1 hour" ) }, { "rapido", to_translation( "Day in 30 minutes" ) }
     },
     "normal"
        );

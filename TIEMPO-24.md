@@ -91,13 +91,12 @@ en las dudas se ha hecho como allí.
 - **¿Curarse?** Mundo (como Zomboid: las heridas tardan días de juego). Vendarse es una actividad.
 - **¿Sangrar?** Real: una herida que sangra en una pelea tiene que dar tiempo a reaccionar.
 - **¿Conducir?** Real: el coche va a su velocidad de verdad. Lo que se gasta por kilómetro, igual.
-- **¿Dormir?** Mundo: una noche dura 8 horas de juego, 20 minutos reales; y además se puede acelerar.
+- **¿Dormir?** Mundo: una noche dura 8 horas de juego, 20 minutos reales.
 
 ## Velocidades
 
-Lo que se elige es **cuánto dura un día**. Andar y pelear van siempre a paso real: los puntos de movimiento
-se reparten entre los tics de un segundo real, sean los que sean. Solo «acelerar todo» acelera también la
-acción, para dormir, viajar o esperar, y vuelve sola a la normal en cuanto aparece un peligro.
+Lo que elige el jugador es **cuánto dura un día**, o la pausa, y nada más. Andar y pelear van siempre a paso
+real: los puntos de movimiento se reparten entre los tics de un segundo real, sean los que sean.
 
 | Velocidad | Tics por segundo | Un día de juego dura | Andar |
 |---|---|---|---|
@@ -105,7 +104,10 @@ acción, para dormir, viajar o esperar, y vuelve sola a la normal en cuanto apar
 | Día lento | 12 | 2 horas | a paso real |
 | **Día normal** (por defecto) | 24 | 1 hora | a paso real |
 | Día rápido | 48 | 30 minutos | a paso real |
-| Acelerar todo | lo que dé el ordenador | minutos | todo deprisa |
+
+Para probar, el modo simulación (sin ventana, src/simulacion.h) puede ir a la máxima, lo más rápido que pueda
+el ordenador, para jugar partidas enteras en minutos y cazar fallos. Es una herramienta de pruebas, no una
+opción del juego.
 
 Los menús siguen parando el reloj.
 
