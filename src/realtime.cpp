@@ -545,7 +545,7 @@ bool pintar_si_toca()
     if( !activo() || test_mode || ( !en_espera_de_tic && !esperando_jugador ) ) {
         return false;
     }
-    if( !suave::hay_movimiento() || suave::ms_desde_imagen() < 12 ) {
+    if( !suave::hay_movimiento() || suave::ms_desde_imagen() < 8 ) {
         return false;
     }
     repintar();
